@@ -1,0 +1,78 @@
+# Copyright (c) 2018 - 2019 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: Apache-2.0
+
+############################################## RVCop64 original
+if BOARD_ORANGECART
+
+config BOARD
+	default "orangecart"
+
+config ARCH_HAS_GDBSTUB
+    default n
+
+config SPI
+	default y
+
+config FPU
+    bool "Support floating point operations"
+	default n
+
+config DISK_DRIVER_SDMMC
+        default y if DISK_DRIVERS
+
+if NETWORKING
+
+config NET_L2_ETHERNET
+	default n
+
+endif # NETWORKING
+
+endif # BOARD_ORANGECART
+
+############################################## FPU
+if BOARD_ORANGECART_FPU
+config BOARD
+	default "orangecart_fpu"
+
+config SPI
+	default n
+
+config FPU
+    bool "Support floating point operations"
+	default y
+
+config DISK_DRIVER_SDMMC
+        default y if DISK_DRIVERS
+
+if NETWORKING
+
+config NET_L2_ETHERNET
+	default n
+
+endif # NETWORKING
+
+endif # BOARD_ORANGECART_FPU
+
+############################################## SMP
+if BOARD_ORANGECART_SMP
+config BOARD
+	default "orangecart_smp"
+
+config SPI
+	default n
+
+config FPU
+    bool "Support floating point operations"
+	default n
+
+config DISK_DRIVER_SDMMC
+        default y if DISK_DRIVERS
+
+if NETWORKING
+
+config NET_L2_ETHERNET
+	default n
+
+endif # NETWORKING
+
+endif # BOARD_ORANGECART_SMP

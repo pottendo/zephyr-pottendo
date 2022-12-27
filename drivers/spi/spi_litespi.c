@@ -34,14 +34,14 @@ static int spi_config(const struct spi_config *config, uint16_t *control)
 		LOG_ERR("Word size must be %d", SPI_WORD_SIZE);
 		return -ENOTSUP;
 	}
-
+	*control=0x0800;	// make orangecart happy; during init, 0x0 would be sent, which locks the system
 	if (config->operation & SPI_CS_ACTIVE_HIGH) {
-		LOG_ERR("CS active high not supported");
+		LOG_DBG("CS active high not supported");
 		return -ENOTSUP;
 	}
 
 	if (config->operation & SPI_LOCK_ON) {
-		LOG_ERR("Lock On not supported");
+		LOG_DBG("Lock On not supported");
 		return -ENOTSUP;
 	}
 
