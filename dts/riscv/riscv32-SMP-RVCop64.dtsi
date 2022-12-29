@@ -45,8 +45,47 @@
                     compatible = "riscv,cpu-intc";
                 };
             };
+            CPU1: cpu@1 {
+                device_type = "cpu";
+                compatible = "riscv";
+                riscv,isa = "rv32i2p0_ma";
+                mmu-type = "riscv,sv32";
+                reg = <1>;
+                clock-frequency = <80000000>;
+                status = "okay";
+                
+                d-cache-size = <8192>;
+                d-cache-sets = <2>;
+                d-cache-block-size = <64>;
 
-            
+                i-cache-size = <8192>;
+                i-cache-sets = <2>;
+                i-cache-block-size = <64>;
+
+                
+                d-tlb-size = <4>;
+                d-tlb-sets = <4>;
+
+                i-tlb-size = <4>;
+                i-tlb-sets = <4>;
+
+                L1: interrupt-controller {
+                    #address-cells = <0>;
+                    #interrupt-cells = <0x00000001>;
+                    interrupt-controller;
+                    compatible = "riscv,cpu-intc";
+                };
+            };
+            cpu-map {
+                cluster0 {
+                    core0 {
+                        cpu = <&CPU0>;
+                    };
+                    core1 {
+                        cpu = <&CPU1>;
+                    };
+                };
+            };
         };
 
         memory@40000000 {
