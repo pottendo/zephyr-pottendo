@@ -1,6 +1,6 @@
 # Zephyr OrangeCart FPU (& SMP) support
 
-Look [here][2] for general inforamtion about *Zephyr*.
+Look [here][2] for general information about *Zephyr*.
 
 This project relies on bitstreams (FPGA firmware) for the [OrangeCart][4] from [this][3] project.
 
