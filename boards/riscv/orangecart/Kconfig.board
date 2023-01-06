@@ -4,13 +4,24 @@
 config BOARD_ORANGECART
 	bool "Board with LiteX/VexRiscV CPU"
 	depends on SOC_RISCV32_LITEX_VEXRISCV
+	select SERIAL_SUPPORT_INTERRUPT
+	select SERIAL
 
 config BOARD_ORANGECART_FPU
 	bool "Board with LiteX/VexRiscV-SMP CPU"
 	depends on SOC_RISCV32_LITEX_VEXRISCV
 	select CPU_HAS_FPU_DOUBLE_PRECISION
 	select FPU_SHARING
+#	select SERIAL_SUPPORT_INTERRUPT
+#	select SERIAL
+#	select	select RISCV_ISA_EXT_C
+	# ISA EXT C extension seems a bit slower, but more memory efficient, not yet useful on Zephyr
+	# however, the bitstream supports it, better for Linux to save memory
 
 config BOARD_ORANGECART_SMP
 	bool "Board with LiteX/VexRiscV-SMP CPU"
 	depends on SOC_RISCV32_LITEX_VEXRISCV
+#	select SERIAL_SUPPORT_INTERRUPT
+#	select SERIAL
+#	select RISCV_ISA_EXT_C
+
