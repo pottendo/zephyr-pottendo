@@ -14,18 +14,8 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/types.h>
 
-#define UART_RXTX_ADDR		DT_INST_REG_ADDR_BY_NAME(0, rxtx)
-#define UART_TXFULL_ADDR	DT_INST_REG_ADDR_BY_NAME(0, txfull)
-#define UART_RXEMPTY_ADDR	DT_INST_REG_ADDR_BY_NAME(0, rxempty)
-#define UART_EV_STATUS_ADDR	DT_INST_REG_ADDR_BY_NAME(0, ev_status)
-#define UART_EV_PENDING_ADDR	DT_INST_REG_ADDR_BY_NAME(0, ev_pending)
-#define UART_EV_ENABLE_ADDR	DT_INST_REG_ADDR_BY_NAME(0, ev_enable)
-#define UART_TXEMPTY_ADDR	DT_INST_REG_ADDR_BY_NAME(0, txempty)
-#define UART_RXFULL_ADDR	DT_INST_REG_ADDR_BY_NAME(0, rxfull)
-
 #define UART_EV_TX		(1 << 0)
 #define UART_EV_RX		(1 << 1)
-#define UART_IRQ		DT_INST_IRQN(0)
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 typedef void (*irq_cfg_func_t)(void);
@@ -35,8 +25,16 @@ struct uart_liteuart_device_config {
 	uint32_t port;
 	uint32_t sys_clk_freq;
 	uint32_t baud_rate;
+	unsigned long rxtx_addr;
+	unsigned long txfull_addr;
+	unsigned long rxempty_addr;
+	unsigned long ev_status_addr;
+	unsigned long ev_pending_addr;
+	unsigned long ev_enable_addr;
+	unsigned long txempty_addr;
+	unsigned long rxfull_addr;
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	irq_cfg_func_t cfg_func;
+	void (*irq_config_func)(const struct device *dev);
 #endif
 };
 
@@ -57,11 +55,12 @@ struct uart_liteuart_data {
  */
 static void uart_liteuart_poll_out(const struct device *dev, unsigned char c)
 {
+	const struct uart_liteuart_device_config *config = dev->config;
 	/* wait for space */
-	while (litex_read8(UART_TXFULL_ADDR)) {
+	while (litex_read8(config->txfull_addr)) {
 	}
 
-	litex_write8(c, UART_RXTX_ADDR);
+	litex_write8(c, config->rxtx_addr);
 }
 
 /**
@@ -74,13 +73,14 @@ static void uart_liteuart_poll_out(const struct device *dev, unsigned char c)
  */
 static int uart_liteuart_poll_in(const struct device *dev, unsigned char *c)
 {
-	if (!litex_read8(UART_RXEMPTY_ADDR)) {
-		*c = litex_read8(UART_RXTX_ADDR);
+	const struct uart_liteuart_device_config *config = dev->config;
+	if (!litex_read8(config->rxempty_addr)) {
+		*c = litex_read8(config->rxtx_addr);
 
 		/* refresh UART_RXEMPTY by writing UART_EV_RX
 		 * to UART_EV_PENDING
 		 */
-		litex_write8(UART_EV_RX, UART_EV_PENDING_ADDR);
+		litex_write8(UART_EV_RX, config->ev_pending_addr);
 		return 0;
 	} else {
 		return -1;
@@ -95,9 +95,10 @@ static int uart_liteuart_poll_in(const struct device *dev, unsigned char *c)
  */
 static void uart_liteuart_irq_tx_enable(const struct device *dev)
 {
-	uint8_t enable = litex_read8(UART_EV_ENABLE_ADDR);
+	const struct uart_liteuart_device_config *config = dev->config;
+	uint8_t enable = litex_read8(config->ev_enable_addr);
 
-	litex_write8(enable | UART_EV_TX, UART_EV_ENABLE_ADDR);
+	litex_write8(enable | UART_EV_TX, config->ev_enable_addr);
 }
 
 /**
@@ -107,9 +108,10 @@ static void uart_liteuart_irq_tx_enable(const struct device *dev)
  */
 static void uart_liteuart_irq_tx_disable(const struct device *dev)
 {
-	uint8_t enable = litex_read8(UART_EV_ENABLE_ADDR);
+	const struct uart_liteuart_device_config *config = dev->config;
+	uint8_t enable = litex_read8(config->ev_enable_addr);
 
-	litex_write8(enable & ~(UART_EV_TX), UART_EV_ENABLE_ADDR);
+	litex_write8(enable & ~(UART_EV_TX), config->ev_enable_addr);
 }
 
 /**
@@ -119,9 +121,10 @@ static void uart_liteuart_irq_tx_disable(const struct device *dev)
  */
 static void uart_liteuart_irq_rx_enable(const struct device *dev)
 {
-	uint8_t enable = litex_read8(UART_EV_ENABLE_ADDR);
+	const struct uart_liteuart_device_config *config = dev->config;
+	uint8_t enable = litex_read8(config->ev_enable_addr);
 
-	litex_write8(enable | UART_EV_RX, UART_EV_ENABLE_ADDR);
+	litex_write8(enable | UART_EV_RX, config->ev_enable_addr);
 }
 
 /**
@@ -131,9 +134,10 @@ static void uart_liteuart_irq_rx_enable(const struct device *dev)
  */
 static void uart_liteuart_irq_rx_disable(const struct device *dev)
 {
-	uint8_t enable = litex_read8(UART_EV_ENABLE_ADDR);
+	const struct uart_liteuart_device_config *config = dev->config;
+	uint8_t enable = litex_read8(config->ev_enable_addr);
 
-	litex_write8(enable & ~(UART_EV_RX), UART_EV_ENABLE_ADDR);
+	litex_write8(enable & ~(UART_EV_RX), config->ev_enable_addr);
 }
 
 /**
@@ -145,7 +149,8 @@ static void uart_liteuart_irq_rx_disable(const struct device *dev)
  */
 static int uart_liteuart_irq_tx_ready(const struct device *dev)
 {
-	uint8_t val = litex_read8(UART_TXFULL_ADDR);
+	const struct uart_liteuart_device_config *config = dev->config;
+	uint8_t val = litex_read8(config->txfull_addr);
 
 	return !val;
 }
@@ -160,8 +165,9 @@ static int uart_liteuart_irq_tx_ready(const struct device *dev)
 static int uart_liteuart_irq_rx_ready(const struct device *dev)
 {
 	uint8_t pending;
+	const struct uart_liteuart_device_config *config = dev->config;
 
-	pending = litex_read8(UART_EV_PENDING_ADDR);
+	pending = litex_read8(config->ev_pending_addr);
 
 	if (pending & UART_EV_RX) {
 		return 1;
@@ -183,9 +189,10 @@ static int uart_liteuart_fifo_fill(const struct device *dev,
 				   const uint8_t *tx_data, int size)
 {
 	int i;
+	const struct uart_liteuart_device_config *config = dev->config;
 
-	for (i = 0; i < size && !litex_read8(UART_TXFULL_ADDR); i++) {
-		litex_write8(tx_data[i], UART_RXTX_ADDR);
+	for (i = 0; i < size && !litex_read8(config->txfull_addr); i++) {
+		litex_write8(tx_data[i], config->rxtx_addr);
 	}
 
 	return i;
@@ -204,14 +211,15 @@ static int uart_liteuart_fifo_read(const struct device *dev,
 				   uint8_t *rx_data, const int size)
 {
 	int i;
+	const struct uart_liteuart_device_config *config = dev->config;
 
-	for (i = 0; i < size && !litex_read8(UART_RXEMPTY_ADDR); i++) {
-		rx_data[i] = litex_read8(UART_RXTX_ADDR);
+	for (i = 0; i < size && !litex_read8(config->rxempty_addr); i++) {
+		rx_data[i] = litex_read8(config->rxtx_addr);
 
 		/* refresh UART_RXEMPTY by writing UART_EV_RX
 		 * to UART_EV_PENDING
 		 */
-		litex_write8(UART_EV_RX, UART_EV_PENDING_ADDR);
+		litex_write8(UART_EV_RX, config->ev_pending_addr);
 	}
 
 	return i;
@@ -232,8 +240,9 @@ static void uart_liteuart_irq_err(const struct device *dev)
 static int uart_liteuart_irq_is_pending(const struct device *dev)
 {
 	uint8_t pending;
+	const struct uart_liteuart_device_config *config = dev->config;
 
-	pending = litex_read8(UART_EV_PENDING_ADDR);
+	pending = litex_read8(config->ev_pending_addr);
 
 	if (pending & (UART_EV_TX | UART_EV_RX)) {
 		return 1;
@@ -268,13 +277,14 @@ static void liteuart_uart_irq_handler(const struct device *dev)
 {
 	struct uart_liteuart_data *data = dev->data;
 	unsigned int key = irq_lock();
+	const struct uart_liteuart_device_config *config = dev->config;
 
 	if (data->callback) {
 		data->callback(dev, data->cb_data);
 	}
 
 	/* clear events */
-	litex_write8(UART_EV_TX | UART_EV_RX, UART_EV_PENDING_ADDR);
+	litex_write8(UART_EV_TX | UART_EV_RX, config->ev_pending_addr);
 
 	irq_unlock(key);
 }
@@ -301,31 +311,68 @@ static const struct uart_driver_api uart_liteuart_driver_api = {
 #endif
 };
 
-static struct uart_liteuart_data uart_liteuart_data_0;
-static int uart_liteuart_init(const struct device *dev);
-
-static const struct uart_liteuart_device_config uart_liteuart_dev_cfg_0 = {
-	.port		= UART_RXTX_ADDR,
-	.baud_rate	= DT_INST_PROP(0, current_speed)
-};
-
-DEVICE_DT_INST_DEFINE(0,
-		uart_liteuart_init,
-		NULL,
-		&uart_liteuart_data_0, &uart_liteuart_dev_cfg_0,
-		PRE_KERNEL_1, CONFIG_SERIAL_INIT_PRIORITY,
-		(void *)&uart_liteuart_driver_api);
-
 static int uart_liteuart_init(const struct device *dev)
 {
-	litex_write8(UART_EV_TX | UART_EV_RX, UART_EV_PENDING_ADDR);
-
-#ifdef CONFIG_UART_INTERRUPT_DRIVEN
-	IRQ_CONNECT(UART_IRQ, DT_INST_IRQ(0, priority),
-			liteuart_uart_irq_handler, DEVICE_DT_INST_GET(0),
-			0);
-	irq_enable(UART_IRQ);
-#endif
-
+	const struct uart_liteuart_device_config *config = dev->config;
+	litex_write8(UART_EV_TX | UART_EV_RX, config->ev_pending_addr);
 	return 0;
 }
+
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+#define LITEX_UART_CONFIG_FUNC(node_id, n) \
+	static void uart_config_func_##n(const struct device *dev) { \
+	IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority), \
+			liteuart_uart_irq_handler, DEVICE_DT_INST_GET(n), \
+			0); \
+	irq_enable(DT_INST_IRQN(n)); \
+	}
+
+#define LITEX_UART_CONFIG_INIT(node_id, n) \
+	.irq_config_func = uart_config_func_##n
+
+#else
+#define LITEX_UART_CONFIG_FUNC(node_id, n)
+#define LITEX_UART_CONFIG_INIT(node_id, n)
+#endif	/* CONFIG_UART_INTERRUPT_DRIVEN */
+
+
+#define LITEX_UART_INIT(node_id, n) \
+	LITEX_UART_CONFIG_FUNC(node_id, n) \
+	static struct uart_liteuart_data litex_uart_##n##_data; \
+	static const struct uart_liteuart_device_config litex_uart_##n##_config = { \
+		.port		= DT_INST_REG_ADDR_BY_NAME(n, rxtx), \
+		.baud_rate	= DT_INST_PROP(n, current_speed), \
+		.rxtx_addr  = DT_INST_REG_ADDR_BY_NAME(n, rxtx),  \
+		.txfull_addr = DT_INST_REG_ADDR_BY_NAME(n, txfull), \
+		.rxempty_addr = DT_INST_REG_ADDR_BY_NAME(n, rxempty), \
+		.ev_status_addr = DT_INST_REG_ADDR_BY_NAME(n, ev_status), \
+		.ev_pending_addr = DT_INST_REG_ADDR_BY_NAME(n, ev_pending), \
+		.ev_enable_addr = DT_INST_REG_ADDR_BY_NAME(n, ev_enable), \
+		.txempty_addr = DT_INST_REG_ADDR_BY_NAME(n, txempty), \
+		.rxfull_addr = DT_INST_REG_ADDR_BY_NAME(n, rxfull), \
+		LITEX_UART_CONFIG_INIT(node_id, n)			\
+	}; \
+	DEVICE_DT_DEFINE(node_id, &uart_liteuart_init,			\
+		 PM_DEVICE_DT_GET(node_id),			\
+		 &litex_uart_##n##_data,			\
+		 &litex_uart_##n##_config,			\
+		 PRE_KERNEL_1,					\
+		 CONFIG_SERIAL_INIT_PRIORITY,			\
+		 (void *) &uart_liteuart_driver_api)
+
+#if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(uart0), DT_DRV_COMPAT, okay)
+LITEX_UART_INIT(DT_NODELABEL(uart0), 0);
+#endif
+
+#if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(uart1), DT_DRV_COMPAT, okay)
+LITEX_UART_INIT(DT_NODELABEL(uart1), 1);
+#endif
+/* just in case, one uses 'liteuart...' as this is the output for the Linux DTS */
+#if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(liteuart0), DT_DRV_COMPAT, okay)
+LITEX_UART_INIT(DT_NODELABEL(liteuart0), 0);
+#endif
+
+#if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(liteuart1), DT_DRV_COMPAT, okay)
+LITEX_UART_INIT(DT_NODELABEL(liteuart1), 1);
+#endif
+
