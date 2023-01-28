@@ -42,10 +42,11 @@
 			reg-names = "irq_mask", "irq_pending";
 			riscv,max-priority = <7>;
 		};
+
 		uart0: serial@f0001000 {
 			compatible = "litex,uart0";
 			interrupt-parent = <&intc0>;
-			interrupts = <2 10>;
+			interrupts = <2 7>;
 			reg = <0xf0001000 0x4
 				0xf0001004 0x4
 				0xf0001008 0x4
@@ -65,6 +66,30 @@
 				"rxfull";
 			status = "disabled";
 		};
+
+		uart1: serial@f0004800 {
+			compatible = "litex,uart0";
+			interrupt-parent = <&intc0>;
+			interrupts = <0x3 7>;
+			reg = <0xf0004800 0x4
+				0xf0004804 0x4
+				0xf0004808 0x4
+				0xf000480c 0x4
+				0xf0004810 0x4
+				0xf0004814 0x4
+				0xf0004818 0x4
+				0xf000481c 0x4>;
+			reg-names = "rxtx",
+				"txfull",
+				"rxempty",
+				"ev_status",
+				"ev_pending",
+				"ev_enable",
+				"txempty",
+				"rxfull";
+			status = "disabled";
+		};
+
 		spi0: spi@f0002800 {
 			compatible = "litex,spi";
 			reg = <0xf0002800 0x4
@@ -171,14 +196,7 @@
 			reg-names = "mem";
 			status = "disabled";
 		};
-		i2c0: i2c@e0005000 {
-			compatible = "litex,i2c";
-			reg = <0xe0005000 0x4 0xe0005004 0x4>;
-			reg-names = "write", "read";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "disabled";
-		};
+
 		gpio_out: gpio@e0005800 {
 			compatible = "litex,gpio";
 			reg = <0xe0005800 0x4>;
@@ -189,6 +207,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
+ 
 		gpio_in: gpio@e0006000 {
 			compatible = "litex,gpio";
 			reg = <0xe0006000 0x4
@@ -207,6 +226,15 @@
 			status = "disabled";
 			gpio-controller;
 			#gpio-cells = <2>;
+		};
+
+/* 		i2c0: i2c@e0005000 {
+			compatible = "litex,i2c";
+			reg = <0xe0005000 0x4 0xe0005004 0x4>;
+			reg-names = "write", "read";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
 		};
 		prbs0: prbs@e0006800 {
 			compatible = "litex,prbs";
@@ -332,6 +360,6 @@
 			litex,vco-margin = <0>;
 			status = "disabled";
 		};
-
+*/
 	};
 };

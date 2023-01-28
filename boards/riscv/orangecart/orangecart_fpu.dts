@@ -12,8 +12,8 @@
 	model = "LiteX Orangecart";
 	compatible = "litex,vexriscv";
 	chosen {
-		zephyr,console = &liteuart0;
-		zephyr,shell-uart = &liteuart0;
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
 		zephyr,sram = &ram0;
 		/* zephyr,gdbstub-uart = &uart0; */
 	};
@@ -24,9 +24,18 @@
 	};
 };
 
-&liteuart0 {
+&uart0 {
 	status = "okay";
 	current-speed = <115200>;
+};
+
+&uart1 {
+	status = "okay";
+	current-speed = <115200>;
+	gsm: gsm-modem {
+		compatible = "zephyr,gsm-ppp";
+		status="okay";
+	};			
 };
 
 &spi0 {

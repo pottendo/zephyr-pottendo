@@ -66,7 +66,8 @@
                 status = "okay";
             };
             intc0: interrupt-controller@f0c00000 {
-                compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
+                //compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
+                compatible = "sifive,plic-1.0.0";
                 //reg = <0xf0c00000 0x400000>;
                 reg = <0xf0c00000 0x00002000
 			       0xf0c02000 0x001fe000
@@ -76,7 +77,7 @@
                 interrupt-controller;
                 reg-names = "prio", "irq_en", "reg";
                 interrupts-extended = 
-                    <&L0 11 &L0 9>;
+                    <&L0 0 &L0 9>;
                 riscv,ndev = <32>;
                 riscv,max-priority = <7>;
                 status="okay";
@@ -88,10 +89,10 @@
                 <&L0 0x03 &L0 0x07>;
                 status="okay";
             };
-            liteuart0: serial@f0001000 {
+            uart0: serial@f0001000 {
                 compatible = "litex,uart0";
                 interrupt-parent = <&intc0>;
-                interrupts = <2 10>;
+                interrupts = <2 7>;
                 reg = <0xf0001000 0x4
                     0xf0001004 0x4
                     0xf0001008 0x4
@@ -111,7 +112,29 @@
                     "rxfull";
                 status = "disabled";
             };
-
+            uart1: serial@f0004800 {
+                compatible = "litex,uart0";
+                interrupt-parent = <&intc0>;
+                reg = <0xf0004800 0x4
+                    0xf0004804 0x4
+                    0xf0004808 0x4
+                    0xf000480c 0x4
+                    0xf0004810 0x4
+                    0xf0004814 0x4
+                    0xf0004818 0x4
+                    0xf000481c 0x4>;
+                reg-names = "rxtx",
+                    "txfull",
+                    "rxempty",
+                    "ev_status",
+                    "ev_pending",
+                    "ev_enable",
+                    "txempty",
+                    "rxfull";
+                interrupts = <0x3 7>;
+                status = "disabled";
+             };
+            
             spi0: spi@f0002800 {
                 compatible = "litex,spi";
                 reg = <0xf0002800 0x4
@@ -153,7 +176,8 @@
         };
 
         aliases {
-            serial0 = &liteuart0;
+            serial0 = &uart0;
+            serial1 = &uart1;
         };
 
 };
