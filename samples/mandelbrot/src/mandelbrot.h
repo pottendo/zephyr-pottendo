@@ -121,7 +121,7 @@ class mandel
         t %= ~val;
         t |= val;
         canvas[cidx] = t;
-#ifdef ZEPHYR
+#ifdef __ZEPHYR__
         volatile char *led= (char *)0xf0002000;
         *led = ((*led) + 1);
 #endif        
@@ -215,10 +215,9 @@ class mandel
         tparam_t *p = (tparam_t *)param;
         // Wait to be kicked off by mainthread
         //log_msg("thread %d waiting for kickoff\n", p->tno);
-#if defined(ZEPHYR) && defined (CONFIG_FPU)
+#if defined(__ZEPHYR__) && defined(CONFIG_FPU)
 	// make sure FPU regs are saved during context switch
 	int r;
-	
 	if ((r = k_float_enable(k_current_get(), 0)) != 0)
 	{
 	    log_msg("%s: k_float_enable() failed: %d.\n", __FUNCTION__, r);

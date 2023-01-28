@@ -13,7 +13,7 @@
 //
 #include <stdio.h>
 
-#ifndef ZEPHYR
+#ifndef __ZEPHYR__
 #include <fcntl.h>
 #include <sys/mman.h>
 #endif
@@ -42,7 +42,7 @@ c64::c64()
 c64::~c64()
 {
     gfx(VICBank0, VICModeText, 1);
-#ifndef ZEPHYR    
+#ifndef __ZEPHYR__
     munmap(mem, 0x10000);
 #endif    
 }
@@ -84,7 +84,7 @@ void c64::gfx(c64_consts bank, c64_consts mode, uint8_t vram)
 unsigned char *
 c64::map_memory(off_t offset, size_t len)
 {
-#ifndef ZEPHYR    
+#ifndef __ZEPHYR__
     // Truncate offset to a multiple of the page size, or mmap will fail.
     size_t pagesize = sysconf(_SC_PAGE_SIZE);
     off_t page_base = (offset / pagesize) * pagesize;

@@ -22,7 +22,7 @@
 static char cv[CSIZE] = {};
 #endif
 
-#ifdef ZEPHYR
+#ifdef __ZEPHYR__
 #define M_PI            3.14159265358979323846
 #if (NO_THREADS > 16)
 #error "too many threads for Orangencart's STACK_SIZE"
@@ -51,7 +51,7 @@ static inline void timespec_diff(struct timespec *a, struct timespec *b,
 
 int main(int argc, char *argv[])
 {
-#ifndef ZEPHYR
+#ifndef __ZEPHYR__
     stacks = new char[STACK_SIZE * NO_THREADS]();
 #endif
 #ifdef C64
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
     std::cout << "mandelbrot set done in: " << dt.tv_sec << '.' << dt.tv_nsec / 1000000L << "s\n";
 
     delete m;
-#ifdef ZEPHYR
+#ifdef __ZEPHYR__
     while(1)
     {
         std::cout << "system halted.\n";
