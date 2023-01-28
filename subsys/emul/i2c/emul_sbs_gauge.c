@@ -25,7 +25,7 @@ LOG_MODULE_REGISTER(sbs_sbs_gauge);
 
 /** Run-time data used by the emulator */
 struct sbs_gauge_emul_data {
-	/* Stub */
+	uint16_t mfr_acc;
 };
 
 /** Static configuration for the emulator */
@@ -36,10 +36,13 @@ struct sbs_gauge_emul_cfg {
 
 static int emul_sbs_gauge_reg_write(const struct emul *target, int reg, int val)
 {
-	ARG_UNUSED(target);
+	struct sbs_gauge_emul_data *data = target->data;
 
 	LOG_INF("write %x = %x", reg, val);
 	switch (reg) {
+	case SBS_GAUGE_CMD_MANUFACTURER_ACCESS:
+		data->mfr_acc = val;
+		break;
 	default:
 		LOG_INF("Unknown write %x", reg);
 		return -EIO;
@@ -50,9 +53,12 @@ static int emul_sbs_gauge_reg_write(const struct emul *target, int reg, int val)
 
 static int emul_sbs_gauge_reg_read(const struct emul *target, int reg, int *val)
 {
-	ARG_UNUSED(target);
+	struct sbs_gauge_emul_data *data = target->data;
 
 	switch (reg) {
+	case SBS_GAUGE_CMD_MANUFACTURER_ACCESS:
+		*val = data->mfr_acc;
+		break;
 	case SBS_GAUGE_CMD_VOLTAGE:
 	case SBS_GAUGE_CMD_AVG_CURRENT:
 	case SBS_GAUGE_CMD_TEMP:
@@ -91,7 +97,7 @@ static int sbs_gauge_emul_transfer_i2c(const struct emul *target, struct i2c_msg
 
 	__ASSERT_NO_MSG(msgs && num_msgs);
 
-	i2c_dump_msgs("emul", msgs, num_msgs, addr);
+	i2c_dump_msgs_rw("emul", msgs, num_msgs, addr, false);
 	switch (num_msgs) {
 	case 2:
 		if (msgs->flags & I2C_MSG_READ) {
@@ -114,17 +120,22 @@ static int sbs_gauge_emul_transfer_i2c(const struct emul *target, struct i2c_msg
 					/* Return before writing bad value to message buffer */
 					return rc;
 				}
-				msgs->buf[0] = val;
+
+				/* SBS uses SMBus, which sends data in little-endian format. */
+				sys_put_le16(val, msgs->buf);
 				break;
 			default:
 				LOG_ERR("Unexpected msg1 length %d", msgs->len);
 				return -EIO;
 			}
 		} else {
-			if (msgs->len != 1) {
+			/* We write a word (2 bytes by the SBS spec) */
+			if (msgs->len != 2) {
 				LOG_ERR("Unexpected msg1 length %d", msgs->len);
 			}
-			rc = emul_sbs_gauge_reg_write(target, reg, msgs->buf[0]);
+			uint16_t *value = (uint16_t *)msgs->buf;
+
+			rc = emul_sbs_gauge_reg_write(target, reg, *value);
 		}
 		break;
 	default:
@@ -163,6 +174,6 @@ static int emul_sbs_sbs_gauge_init(const struct emul *target, const struct devic
 		.addr = DT_INST_REG_ADDR(n),                                                       \
 	};                                                                                         \
 	EMUL_DT_INST_DEFINE(n, emul_sbs_sbs_gauge_init, &sbs_gauge_emul_data_##n,                  \
-			    &sbs_gauge_emul_cfg_##n, &sbs_gauge_emul_api_i2c)
+			    &sbs_gauge_emul_cfg_##n, &sbs_gauge_emul_api_i2c, NULL)
 
 DT_INST_FOREACH_STATUS_OKAY(SBS_GAUGE_EMUL)

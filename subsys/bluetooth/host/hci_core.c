@@ -41,6 +41,7 @@
 #include "adv.h"
 #include "scan.h"
 
+#include "addr_internal.h"
 #include "conn_internal.h"
 #include "iso_internal.h"
 #include "l2cap_internal.h"
@@ -582,12 +583,12 @@ int bt_le_create_conn_ext(const struct bt_conn *conn)
 	} else {
 		const bt_addr_le_t *peer_addr = &conn->le.dst;
 
-		if (!bt_addr_le_eq(&conn->le.resp_addr, BT_ADDR_LE_ANY)) {
+#if defined(CONFIG_BT_SMP)
+		if (bt_dev.le.rl_entries > bt_dev.le.rl_size) {
 			/* Host resolving is used, use the RPA directly. */
 			peer_addr = &conn->le.resp_addr;
-			LOG_DBG("Using resp_addr %s", bt_addr_le_str(peer_addr));
 		}
-
+#endif
 		bt_addr_le_copy(&cp->peer_addr, peer_addr);
 		cp->filter_policy = BT_HCI_LE_CREATE_CONN_FP_NO_FILTER;
 	}
@@ -655,12 +656,12 @@ static int bt_le_create_conn_legacy(const struct bt_conn *conn)
 	} else {
 		const bt_addr_le_t *peer_addr = &conn->le.dst;
 
-		if (!bt_addr_le_eq(&conn->le.resp_addr, BT_ADDR_LE_ANY)) {
+#if defined(CONFIG_BT_SMP)
+		if (bt_dev.le.rl_entries > bt_dev.le.rl_size) {
 			/* Host resolving is used, use the RPA directly. */
 			peer_addr = &conn->le.resp_addr;
-			LOG_DBG("Using resp_addr %s", bt_addr_le_str(peer_addr));
 		}
-
+#endif
 		bt_addr_le_copy(&cp->peer_addr, peer_addr);
 		cp->filter_policy = BT_HCI_LE_CREATE_CONN_FP_NO_FILTER;
 	}
@@ -1205,11 +1206,8 @@ void bt_hci_le_enh_conn_complete(struct bt_hci_evt_le_enh_conn_complete *evt)
 		return;
 	}
 
-	/* Translate "enhanced" identity address type to normal one */
-	if (evt->peer_addr.type == BT_ADDR_LE_PUBLIC_ID ||
-	    evt->peer_addr.type == BT_ADDR_LE_RANDOM_ID) {
-		bt_addr_le_copy(&id_addr, &evt->peer_addr);
-		id_addr.type -= BT_ADDR_LE_PUBLIC_ID;
+	if (bt_addr_le_is_resolved(&evt->peer_addr)) {
+		bt_addr_le_copy_resolved(&id_addr, &evt->peer_addr);
 
 		bt_addr_copy(&peer_addr.a, &evt->peer_rpa);
 		peer_addr.type = BT_ADDR_LE_RANDOM;
@@ -3798,9 +3796,9 @@ int bt_disable(void)
 
 	bt_monitor_send(BT_MONITOR_CLOSE_INDEX, NULL, 0);
 
-#if defined(CONFIG_BT_EXT_ADV) || defined(CONFIG_BT_BROADCASTER)
+#if defined(CONFIG_BT_BROADCASTER)
 	bt_adv_reset_adv_pool();
-#endif /* CONFIG_BT_EXT_ADV || CONFIG_BT_BROADCASTER */
+#endif /* CONFIG_BT_BROADCASTER */
 
 #if defined(CONFIG_BT_PRIVACY)
 	k_work_cancel_delayable(&bt_dev.rpa_update);

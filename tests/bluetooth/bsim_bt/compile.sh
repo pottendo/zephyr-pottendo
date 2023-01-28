@@ -36,6 +36,7 @@ app=tests/bluetooth/bsim_bt/bsim_test_app conf_file=prj_split_privacy.conf \
   compile &
 app=tests/bluetooth/bsim_bt/bsim_test_app conf_file=prj_split_low_lat.conf \
   compile &
+app=tests/bluetooth/bsim_bt/bsim_test_mtu_update compile &
 app=tests/bluetooth/bsim_bt/bsim_test_multiple compile &
 app=tests/bluetooth/bsim_bt/bsim_test_advx compile &
 app=tests/bluetooth/bsim_bt/bsim_test_adv_chain compile &
@@ -61,9 +62,10 @@ app=tests/bluetooth/bsim_bt/edtt_ble_test_app/gatt_test_app \
 app=tests/bluetooth/bsim_bt/edtt_ble_test_app/gatt_test_app \
   conf_file=prj_llcp.conf compile &
 app=tests/bluetooth/bsim_bt/bsim_test_mesh compile &
-app=tests/bluetooth/bsim_bt/bsim_test_mesh conf_file=prj_low_lat.conf compile &
-app=tests/bluetooth/bsim_bt/bsim_test_mesh conf_file=prj_pst.conf compile &
-app=tests/bluetooth/bsim_bt/bsim_test_mesh conf_file=prj_gatt.conf compile &
+app=tests/bluetooth/bsim_bt/bsim_test_mesh conf_overlay=overlay_low_lat.conf compile &
+app=tests/bluetooth/bsim_bt/bsim_test_mesh conf_overlay=overlay_pst.conf compile &
+app=tests/bluetooth/bsim_bt/bsim_test_mesh conf_overlay=overlay_gatt.conf compile &
 app=tests/bluetooth/bsim_bt/bsim_test_disable compile &
+app=tests/bluetooth/bsim_bt/bsim_test_per_adv compile &
 
 wait

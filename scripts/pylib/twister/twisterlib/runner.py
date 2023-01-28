@@ -4,29 +4,36 @@
 # Copyright 2022 NXP
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-import shutil
-import re
-import sys
-import subprocess
-import pickle
 import logging
-import queue
-import time
 import multiprocessing
+import os
+import pickle
+import queue
+import re
+import shutil
+import subprocess
+import sys
+import time
 import traceback
-from colorama import Fore
 from multiprocessing import Lock, Process, Value
 from multiprocessing.managers import BaseManager
+
+from colorama import Fore
+from domains import Domains
 from twisterlib.cmakecache import CMakeCache
 from twisterlib.environment import canonical_zephyr_base
+
+# Job server only works on Linux for now.
+if sys.platform == 'linux':
+    from twisterlib.jobserver import GNUMakeJobClient, GNUMakeJobServer, JobClient
+
 from twisterlib.log_helper import log_command
-from domains import Domains
 from twisterlib.testinstance import TestInstance
 
 logger = logging.getLogger('twister')
 logger.setLevel(logging.DEBUG)
 import expr_parser
+
 
 class ExecutionCounter(object):
     def __init__(self, total=0):
@@ -187,7 +194,7 @@ class CMake:
     config_re = re.compile('(CONFIG_[A-Za-z0-9_]+)[=]\"?([^\"]*)\"?$')
     dt_re = re.compile('([A-Za-z0-9_]+)[=]\"?([^\"]*)\"?$')
 
-    def __init__(self, testsuite, platform, source_dir, build_dir):
+    def __init__(self, testsuite, platform, source_dir, build_dir, jobserver):
 
         self.cwd = None
         self.capture_output = True
@@ -203,6 +210,7 @@ class CMake:
         self.log = "build.log"
 
         self.default_encoding = sys.getdefaultencoding()
+        self.jobserver = jobserver
 
     def parse_generated(self):
         self.defconfig = {}
@@ -226,7 +234,11 @@ class CMake:
         if self.cwd:
             kwargs['cwd'] = self.cwd
 
-        p = subprocess.Popen(cmd, **kwargs)
+        if sys.platform == 'linux':
+            p = self.jobserver.popen(cmd, **kwargs)
+        else:
+            p = subprocess.Popen(cmd, **kwargs)
+
         out, _ = p.communicate()
 
         results = {}
@@ -327,7 +339,10 @@ class CMake:
         if self.cwd:
             kwargs['cwd'] = self.cwd
 
-        p = subprocess.Popen(cmd, **kwargs)
+        if sys.platform == 'linux':
+            p = self.jobserver.popen(cmd, **kwargs)
+        else:
+            p = subprocess.Popen(cmd, **kwargs)
         out, _ = p.communicate()
 
         if p.returncode == 0:
@@ -355,8 +370,8 @@ class CMake:
 
 class FilterBuilder(CMake):
 
-    def __init__(self, testsuite, platform, source_dir, build_dir):
-        super().__init__(testsuite, platform, source_dir, build_dir)
+    def __init__(self, testsuite, platform, source_dir, build_dir, jobserver):
+        super().__init__(testsuite, platform, source_dir, build_dir, jobserver)
 
         self.log = "config-twister.log"
 
@@ -451,8 +466,8 @@ class FilterBuilder(CMake):
 
 class ProjectBuilder(FilterBuilder):
 
-    def __init__(self, instance, env, **kwargs):
-        super().__init__(instance.testsuite, instance.platform, instance.testsuite.source_dir, instance.build_dir)
+    def __init__(self, instance, env, jobserver, **kwargs):
+        super().__init__(instance.testsuite, instance.platform, instance.testsuite.source_dir, instance.build_dir, jobserver)
 
         self.log = "build.log"
         self.instance = instance
@@ -578,20 +593,18 @@ class ProjectBuilder(FilterBuilder):
                 self.report_out(results)
 
             if not self.options.coverage:
-                if self.options.runtime_artifact_cleanup == "pass" and self.instance.status == "passed":
-                    pipeline.put({"op": "cleanup_pass", "test": self.instance})
-                if self.options.runtime_artifact_cleanup == "all":
-                    pipeline.put({"op": "cleanup_all", "test": self.instance})
+                if self.options.prep_artifacts_for_testing:
+                    pipeline.put({"op": "cleanup", "mode": "device", "test": self.instance})
+                elif self.options.runtime_artifact_cleanup == "pass" and self.instance.status == "passed":
+                    pipeline.put({"op": "cleanup", "mode": "passed", "test": self.instance})
+                elif self.options.runtime_artifact_cleanup == "all":
+                    pipeline.put({"op": "cleanup", "mode": "all", "test": self.instance})
 
-        elif op == "cleanup_pass":
-            if self.options.device_testing or self.options.prep_artifacts_for_testing:
+        elif op == "cleanup":
+            mode = message.get("mode")
+            if mode == "device":
                 self.cleanup_device_testing_artifacts()
-            else:
-                self.cleanup_artifacts()
-        elif op == "cleanup_all":
-            if (self.options.device_testing or self.options.prep_artifacts_for_testing) and self.instance.reason != "Cmake build failure":
-                self.cleanup_device_testing_artifacts()
-            else:
+            elif mode == "pass" or (mode == "all" and self.instance.reason != "Cmake build failure"):
                 self.cleanup_artifacts()
 
     def determine_testcases(self, results):
@@ -673,11 +686,17 @@ class ProjectBuilder(FilterBuilder):
             'CMakeCache.txt',
             os.path.join('zephyr', 'runners.yaml'),
         ]
-        keep = [
-            os.path.join('zephyr', 'zephyr.hex'),
-            os.path.join('zephyr', 'zephyr.bin'),
-            os.path.join('zephyr', 'zephyr.elf'),
-            ]
+        platform = self.instance.platform
+        if platform.binaries:
+            keep = []
+            for binary in platform.binaries:
+                keep.append(os.path.join('zephyr', binary ))
+        else:
+            keep = [
+                os.path.join('zephyr', 'zephyr.hex'),
+                os.path.join('zephyr', 'zephyr.bin'),
+                os.path.join('zephyr', 'zephyr.elf'),
+                ]
 
         keep += sanitizelist
 
@@ -885,6 +904,7 @@ class TwisterRunner:
         self.duts = None
         self.jobs = 1
         self.results = None
+        self.jobserver = None
 
     def run(self):
 
@@ -906,7 +926,19 @@ class TwisterRunner:
             self.jobs = multiprocessing.cpu_count() * 2
         else:
             self.jobs = multiprocessing.cpu_count()
-        logger.info("JOBS: %d" % self.jobs)
+
+        if sys.platform == "linux":
+            if os.name == 'posix':
+                self.jobserver = GNUMakeJobClient.from_environ(jobs=self.options.jobs)
+                if not self.jobserver:
+                    self.jobserver = GNUMakeJobServer(self.jobs)
+                elif self.jobserver.jobs:
+                    self.jobs = self.jobserver.jobs
+            # TODO: Implement this on windows/mac also
+            else:
+                self.jobserver = JobClient()
+
+            logger.info("JOBS: %d", self.jobs)
 
         self.update_counting_before_pipeline()
 
@@ -1000,18 +1032,32 @@ class TwisterRunner:
                     pipeline.put({"op": "cmake", "test": instance})
 
     def pipeline_mgr(self, pipeline, done_queue, lock, results):
-        while True:
-            try:
-                task = pipeline.get_nowait()
-            except queue.Empty:
-                break
-            else:
-                instance = task['test']
-                pb = ProjectBuilder(instance, self.env)
-                pb.duts = self.duts
-                pb.process(pipeline, done_queue, task, lock, results)
+        if sys.platform == 'linux':
+            with self.jobserver.get_job():
+                while True:
+                    try:
+                        task = pipeline.get_nowait()
+                    except queue.Empty:
+                        break
+                    else:
+                        instance = task['test']
+                        pb = ProjectBuilder(instance, self.env, self.jobserver)
+                        pb.duts = self.duts
+                        pb.process(pipeline, done_queue, task, lock, results)
 
-        return True
+                return True
+        else:
+            while True:
+                try:
+                    task = pipeline.get_nowait()
+                except queue.Empty:
+                    break
+                else:
+                    instance = task['test']
+                    pb = ProjectBuilder(instance, self.env, self.jobserver)
+                    pb.duts = self.duts
+                    pb.process(pipeline, done_queue, task, lock, results)
+            return True
 
     def execute(self, pipeline, done):
         lock = Lock()
@@ -1021,6 +1067,7 @@ class TwisterRunner:
         logger.info("Added initial list of jobs to queue")
 
         processes = []
+
         for job in range(self.jobs):
             logger.debug(f"Launch process {job}")
             p = Process(target=self.pipeline_mgr, args=(pipeline, done, lock, self.results, ))

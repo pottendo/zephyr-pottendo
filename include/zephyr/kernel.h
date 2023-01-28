@@ -3499,9 +3499,9 @@ extern int k_work_schedule(struct k_work_delayable *dwork,
 /** @brief Reschedule a work item to a queue after a delay.
  *
  * Unlike k_work_schedule_for_queue() this function can change the deadline of
- * a scheduled work item, and will schedule a work item that isn't idle
- * (e.g. is submitted or running).  This function does not affect ("unsubmit")
- * a work item that has been submitted to a queue.
+ * a scheduled work item, and will schedule a work item that is in any state
+ * (e.g. is idle, submitted, or running).  This function does not affect
+ * ("unsubmit") a work item that has been submitted to a queue.
  *
  * @funcprops \isr_ok
  *
@@ -4448,6 +4448,24 @@ __syscall int k_msgq_get(struct k_msgq *msgq, void *data, k_timeout_t timeout);
  * @retval -ENOMSG Returned when the queue has no message.
  */
 __syscall int k_msgq_peek(struct k_msgq *msgq, void *data);
+
+/**
+ * @brief Peek/read a message from a message queue at the specified index
+ *
+ * This routine reads a message from message queue at the specified index
+ * and leaves the message in the queue.
+ * k_msgq_peek_at(msgq, data, 0) is equivalent to k_msgq_peek(msgq, data)
+ *
+ * @funcprops \isr_ok
+ *
+ * @param msgq Address of the message queue.
+ * @param data Address of area to hold the message read from the queue.
+ * @param idx Message queue index at which to peek
+ *
+ * @retval 0 Message read.
+ * @retval -ENOMSG Returned when the queue has no message at index.
+ */
+__syscall int k_msgq_peek_at(struct k_msgq *msgq, void *data, uint32_t idx);
 
 /**
  * @brief Purge a message queue.

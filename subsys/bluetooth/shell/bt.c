@@ -221,7 +221,7 @@ static void scan_recv(const struct bt_le_scan_recv_info *info,
 
 	shell_print(ctx_shell, "[DEVICE]: %s, AD evt type %u, RSSI %i %s "
 		    "C:%u S:%u D:%d SR:%u E:%u Prim: %s, Secn: %s, "
-		    "Interval: 0x%04x (%u ms), SID: 0x%x",
+		    "Interval: 0x%04x (%u us), SID: 0x%x",
 		    le_addr, info->adv_type, info->rssi, name,
 		    (info->adv_props & BT_GAP_ADV_PROP_CONNECTABLE) != 0,
 		    (info->adv_props & BT_GAP_ADV_PROP_SCANNABLE) != 0,
@@ -229,7 +229,7 @@ static void scan_recv(const struct bt_le_scan_recv_info *info,
 		    (info->adv_props & BT_GAP_ADV_PROP_SCAN_RESPONSE) != 0,
 		    (info->adv_props & BT_GAP_ADV_PROP_EXT_ADV) != 0,
 		    phy2str(info->primary_phy), phy2str(info->secondary_phy),
-		    info->interval, BT_CONN_INTERVAL_TO_MS(info->interval),
+		    info->interval, BT_CONN_INTERVAL_TO_US(info->interval),
 		    info->sid);
 
 	/* Store address for later use */
@@ -631,9 +631,9 @@ static void per_adv_sync_sync_cb(struct bt_le_per_adv_sync *sync,
 	}
 
 	shell_print(ctx_shell, "PER_ADV_SYNC[%u]: [DEVICE]: %s synced, "
-		    "Interval 0x%04x (%u ms), PHY %s, SD 0x%04X, PAST peer %s",
+		    "Interval 0x%04x (%u us), PHY %s, SD 0x%04X, PAST peer %s",
 		    bt_le_per_adv_sync_get_index(sync), le_addr,
-		    info->interval, BT_CONN_INTERVAL_TO_MS(info->interval),
+		    info->interval, BT_CONN_INTERVAL_TO_US(info->interval),
 		    phy2str(info->phy), info->service_data, past_peer);
 
 	if (info->conn) { /* if from PAST */
@@ -685,12 +685,12 @@ static void per_adv_sync_biginfo_cb(struct bt_le_per_adv_sync *sync,
 
 	bt_addr_le_to_str(biginfo->addr, le_addr, sizeof(le_addr));
 	shell_print(ctx_shell, "BIG_INFO PER_ADV_SYNC[%u]: [DEVICE]: %s, sid 0x%02x, num_bis %u, "
-		    "nse 0x%02x, interval 0x%04x (%u ms), bn 0x%02x, pto 0x%02x, irc 0x%02x, "
+		    "nse 0x%02x, interval 0x%04x (%u us), bn 0x%02x, pto 0x%02x, irc 0x%02x, "
 		    "max_pdu 0x%04x, sdu_interval 0x%04x, max_sdu 0x%04x, phy %s, framing 0x%02x, "
 		    "%sencrypted",
 		    bt_le_per_adv_sync_get_index(sync), le_addr, biginfo->sid, biginfo->num_bis,
 		    biginfo->sub_evt_count, biginfo->iso_interval,
-		    BT_CONN_INTERVAL_TO_MS(biginfo->iso_interval), biginfo->burst_number,
+		    BT_CONN_INTERVAL_TO_US(biginfo->iso_interval), biginfo->burst_number,
 		    biginfo->offset, biginfo->rep_count, biginfo->max_pdu, biginfo->sdu_interval,
 		    biginfo->max_sdu, phy2str(biginfo->phy), biginfo->framing,
 		    biginfo->encryption ? "" : "not ");
@@ -1329,7 +1329,7 @@ static ssize_t ad_init(struct bt_data *data_array, const size_t data_array_size,
 
 	if (IS_ENABLED(CONFIG_BT_AUDIO) && IS_ENABLED(CONFIG_BT_EXT_ADV) && adv_ext) {
 		const bool connectable = atomic_test_bit(adv_opt, SHELL_ADV_OPT_CONNECTABLE);
-		size_t audio_ad_len;
+		ssize_t audio_ad_len;
 
 		audio_ad_len = audio_ad_data_add(&data_array[ad_len], data_array_size - ad_len,
 						 discoverable, connectable);
@@ -1349,7 +1349,7 @@ static int cmd_advertise(const struct shell *sh, size_t argc, char *argv[])
 	struct bt_data ad[3];
 	bool discoverable = true;
 	bool appearance = false;
-	size_t ad_len;
+	ssize_t ad_len;
 	int err;
 
 	if (!strcmp(argv[1], "off")) {
@@ -1977,12 +1977,33 @@ static int cmd_per_adv_param(const struct shell *sh, size_t argc,
 	return 0;
 }
 
+static ssize_t pa_ad_init(struct bt_data *data_array,
+			  const size_t data_array_size)
+{
+	size_t ad_len = 0;
+
+	if (IS_ENABLED(CONFIG_BT_AUDIO)) {
+		ssize_t audio_pa_ad_len;
+
+		audio_pa_ad_len = audio_pa_data_add(&data_array[ad_len],
+						    data_array_size - ad_len);
+		if (audio_pa_ad_len < 0U) {
+			return audio_pa_ad_len;
+		}
+
+		ad_len += audio_pa_ad_len;
+	}
+
+	return ad_len;
+}
+
 static int cmd_per_adv_data(const struct shell *sh, size_t argc,
 			    char *argv[])
 {
 	struct bt_le_ext_adv *adv = adv_sets[selected_adv];
-	static struct bt_data ad;
 	static uint8_t hex_data[256];
+	static struct bt_data ad[2U];
+	ssize_t stack_ad_len;
 	uint8_t ad_len = 0;
 	int err;
 
@@ -1991,19 +2012,34 @@ static int cmd_per_adv_data(const struct shell *sh, size_t argc,
 		return -EINVAL;
 	}
 
-	memset(hex_data, 0, sizeof(hex_data));
-	ad_len = hex2bin(argv[1], strlen(argv[1]), hex_data, sizeof(hex_data));
+	if (argc > 1) {
+		size_t hex_len = 0U;
 
-	if (!ad_len) {
-		shell_error(sh, "Could not parse adv data");
-		return -ENOEXEC;
+		(void)memset(hex_data, 0, sizeof(hex_data));
+		hex_len = hex2bin(argv[1U], strlen(argv[1U]), hex_data,
+				  sizeof(hex_data));
+
+		if (hex_len == 0U) {
+			shell_error(sh, "Could not parse adv data");
+
+			return -ENOEXEC;
+		}
+
+		ad[ad_len].data_len = hex_data[0U];
+		ad[ad_len].type = hex_data[1U];
+		ad[ad_len].data = &hex_data[2U];
+		ad_len++;
 	}
 
-	ad.data_len = hex_data[0];
-	ad.type = hex_data[1];
-	ad.data = &hex_data[2];
+	stack_ad_len = pa_ad_init(&ad[ad_len], ARRAY_SIZE(ad) - ad_len);
+	if (stack_ad_len < 0) {
+		shell_error(sh, "Failed to get stack PA data");
 
-	err = bt_le_per_adv_set_data(adv, &ad, 1);
+		return -ENOEXEC;
+	}
+	ad_len += stack_ad_len;
+
+	err = bt_le_per_adv_set_data(adv, ad, ad_len);
 	if (err) {
 		shell_error(sh,
 			    "Failed to set periodic advertising data (%d)",
@@ -2268,6 +2304,28 @@ static int cmd_per_adv_sync_transfer(const struct shell *sh, size_t argc,
 }
 #endif /* CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER */
 #endif /* CONFIG_BT_PER_ADV_SYNC */
+
+#if defined(CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER) && defined(CONFIG_BT_PER_ADV)
+static int cmd_per_adv_set_info_transfer(const struct shell *sh, size_t argc,
+					 char *argv[])
+{
+	const struct bt_le_ext_adv *adv = adv_sets[selected_adv];
+	int err;
+
+	if (default_conn == NULL) {
+		shell_error(sh, "%s: at least, one connection is required",
+			    sh->ctx->active_cmd.syntax);
+		return -ENOEXEC;
+	}
+
+	err = bt_le_per_adv_set_info_transfer(adv, default_conn, 0U);
+	if (err) {
+		shell_error(sh, "Periodic advertising sync transfer failed (%d)", err);
+	}
+
+	return err;
+}
+#endif /* CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER && CONFIG_BT_PER_ADV */
 
 #if defined(CONFIG_BT_CONN)
 #if defined(CONFIG_BT_CENTRAL)
@@ -2541,12 +2599,11 @@ static int cmd_info(const struct shell *sh, size_t argc, char *argv[])
 		print_le_addr("Remote on-air", info.le.remote);
 		print_le_addr("Local on-air", info.le.local);
 
-		shell_print(ctx_shell, "Interval: 0x%04x (%u ms)",
+		shell_print(ctx_shell, "Interval: 0x%04x (%u us)",
 			    info.le.interval,
-			    BT_CONN_INTERVAL_TO_MS(info.le.interval));
-		shell_print(ctx_shell, "Latency: 0x%04x (%u ms)",
-			    info.le.latency,
-			    BT_CONN_INTERVAL_TO_MS(info.le.latency));
+			    BT_CONN_INTERVAL_TO_US(info.le.interval));
+		shell_print(ctx_shell, "Latency: 0x%04x",
+			    info.le.latency);
 		shell_print(ctx_shell, "Supervision timeout: 0x%04x (%d ms)",
 			    info.le.timeout, info.le.timeout * 10);
 #if defined(CONFIG_BT_USER_PHY_UPDATE)
@@ -3649,7 +3706,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bt_cmds,
 	SHELL_CMD_ARG(per-adv-param, NULL,
 		      "[<interval-min> [<interval-max> [tx_power]]]",
 		      cmd_per_adv_param, 1, 3),
-	SHELL_CMD_ARG(per-adv-data, NULL, "<data>", cmd_per_adv_data, 2, 0),
+	SHELL_CMD_ARG(per-adv-data, NULL, "[data]", cmd_per_adv_data, 1, 1),
 #endif /* CONFIG_BT_PER_ADV */
 #endif /* CONFIG_BT_EXT_ADV */
 #endif /* CONFIG_BT_BROADCASTER */
@@ -3670,8 +3727,14 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bt_cmds,
 		      cmd_past_unsubscribe, 1, 1),
 #endif /* CONFIG_BT_PER_ADV_SYNC_TRANSFER_RECEIVER */
 #if defined(CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER)
+#if defined(CONFIG_BT_PER_ADV_SYNC)
 	SHELL_CMD_ARG(per-adv-sync-transfer, NULL, "[<index>]",
 		      cmd_per_adv_sync_transfer, 1, 1),
+#endif /* CONFIG_BT_PER_ADV_SYNC */
+#if defined(CONFIG_BT_PER_ADV)
+	SHELL_CMD_ARG(per-adv-set-info-transfer, NULL, "",
+		      cmd_per_adv_set_info_transfer, 1, 0),
+#endif /* CONFIG_BT_PER_ADV */
 #endif /* CONFIG_BT_PER_ADV_SYNC_TRANSFER_SENDER */
 #if defined(CONFIG_BT_CENTRAL)
 	SHELL_CMD_ARG(connect, NULL, HELP_ADDR_LE EXT_ADV_SCAN_OPT,

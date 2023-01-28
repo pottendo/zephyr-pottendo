@@ -17,6 +17,8 @@ import tempfile
 import traceback
 import shlex
 
+from yamllint import config, linter
+
 from junitparser import TestCase, TestSuite, JUnitXml, Skipped, Error, Failure
 import magic
 
@@ -325,7 +327,7 @@ class KconfigCheck(ComplianceTest):
                                                "gen_driver_kconfig_dts.py")
         binding_path = os.path.join(ZEPHYR_BASE, "dts", "bindings")
         cmd = [sys.executable, zephyr_drv_kconfig_path,
-               '--kconfig-out', kconfig_dts_file, '--bindings', binding_path]
+               '--kconfig-out', kconfig_dts_file, '--bindings-dirs', binding_path]
         try:
             subprocess.run(cmd, check=True, stdout=subprocess.PIPE,
                            stderr=subprocess.STDOUT)
@@ -814,6 +816,10 @@ class PyLint(ComplianceTest):
         pylintrc = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                 "pylintrc"))
 
+        # Path to additional pylint check scripts
+        check_script_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                        "../pylint/checkers"))
+
         # List of files added/modified by the commit(s).
         files = get_files(filter="d")
 
@@ -824,14 +830,23 @@ class PyLint(ComplianceTest):
         if not py_files:
             return
 
-        pylintcmd = ["pylint", "--rcfile=" + pylintrc] + py_files
+        python_environment = os.environ.copy()
+        if "PYTHONPATH" in python_environment:
+            python_environment["PYTHONPATH"] = check_script_dir + ":" + \
+                                               python_environment["PYTHONPATH"]
+        else:
+            python_environment["PYTHONPATH"] = check_script_dir
+
+        pylintcmd = ["pylint", "--rcfile=" + pylintrc,
+                     "--load-plugins=argparse-checker"] + py_files
         logger.info(cmd2str(pylintcmd))
         try:
             subprocess.run(pylintcmd,
                            check=True,
                            stdout=subprocess.PIPE,
                            stderr=subprocess.STDOUT,
-                           cwd=GIT_TOP)
+                           cwd=GIT_TOP,
+                           env=python_environment)
         except subprocess.CalledProcessError as ex:
             output = ex.output.decode("utf-8")
             regex = r'^\s*(\S+):(\d+):(\d+):\s*([A-Z]\d{4}):\s*(.*)$'
@@ -991,6 +1006,36 @@ class MaintainersFormat(ComplianceTest):
                 self.failure(f"Error parsing {file}: {ex}")
 
 
+class YAMLLint(ComplianceTest):
+    """
+    YAMLLint
+    """
+    name = "YAMLLint"
+    doc = "Check YAML files with YAMLLint."
+    path_hint = "<git-top>"
+
+    def run(self):
+        config_file = os.path.join(ZEPHYR_BASE, ".yamllint")
+
+        for file in get_files(filter="d"):
+            if Path(file).suffix not in ['.yaml', '.yml']:
+                continue
+
+            yaml_config = config.YamlLintConfig(file=config_file)
+
+            if file.startswith(".github/"):
+                # Tweak few rules for workflow files.
+                yaml_config.rules["line-length"] = False
+                yaml_config.rules["truthy"]["allowed-values"].extend(['on', 'off'])
+            elif file == ".codecov.yml":
+                yaml_config.rules["truthy"]["allowed-values"].extend(['yes', 'no'])
+
+            with open(file, 'r') as fp:
+                for p in linter.run(fp, yaml_config):
+                    self.fmtd_failure('warning', f'YAMLLint ({p.rule})', file,
+                                      p.line, col=p.column, desc=p.desc)
+
+
 def init_logs(cli_arg):
     # Initializes logging
 
@@ -1045,13 +1090,15 @@ def parse_args():
 
     default_range = 'HEAD~1..HEAD'
     parser = argparse.ArgumentParser(
-        description="Check for coding style and documentation warnings.")
+        description="Check for coding style and documentation warnings.", allow_abbrev=False)
     parser.add_argument('-c', '--commits', default=default_range,
                         help=f'''Commit range in the form: a..[b], default is
                         {default_range}''')
     parser.add_argument('-o', '--output', default="compliance.xml",
                         help='''Name of outfile in JUnit format,
                         default is ./compliance.xml''')
+    parser.add_argument('-n', '--no-case-output', action="store_true",
+                        help="Do not store the individual test case output.")
     parser.add_argument('-l', '--list', action="store_true",
                         help="List all checks and exit")
     parser.add_argument("-v", "--loglevel", choices=['DEBUG', 'INFO', 'WARNING',
@@ -1152,10 +1199,11 @@ def _main(args):
 
         suite.add_testcase(test.case)
 
-    xml = JUnitXml()
-    xml.add_testsuite(suite)
-    xml.update_statistics()
-    xml.write(args.output, pretty=True)
+    if args.output:
+        xml = JUnitXml()
+        xml.add_testsuite(suite)
+        xml.update_statistics()
+        xml.write(args.output, pretty=True)
 
     failed_cases = []
     name2doc = {testcase.name: testcase.doc
@@ -1176,16 +1224,20 @@ def _main(args):
     if n_fails:
         print(f"{n_fails} checks failed")
         for case in failed_cases:
-            errmsg = ""
+            for res in case.result:
+                errmsg = res.text.strip()
+                logging.error(f"Test {case.name} failed: \n{errmsg}")
+            if args.no_case_output:
+                continue
             with open(f"{case.name}.txt", "w") as f:
                 docs = name2doc.get(case.name)
                 f.write(f"{docs}\n")
                 for res in case.result:
                     errmsg = res.text.strip()
-                    logging.error(f"Test {case.name} failed: \n{errmsg}")
                     f.write(f'\n {errmsg}')
 
-    print(f"\nComplete results in {args.output}")
+    if args.output:
+        print(f"\nComplete results in {args.output}")
     return n_fails
 
 

@@ -66,12 +66,17 @@ static void tx_thread(void *arg1, void *arg2, void *arg3)
 	struct can_loopback_data *data = dev->data;
 	struct can_loopback_frame frame;
 	struct can_loopback_filter *filter;
+	int ret;
 
 	ARG_UNUSED(arg2);
 	ARG_UNUSED(arg3);
 
 	while (1) {
-		k_msgq_get(&data->tx_msgq, &frame, K_FOREVER);
+		ret = k_msgq_get(&data->tx_msgq, &frame, K_FOREVER);
+		if (ret < 0) {
+			LOG_DBG("Pend on TX queue returned without valid frame (err %d)", ret);
+			continue;
+		}
 		frame.cb(dev, 0, frame.cb_arg);
 
 		if (!data->loopback) {
@@ -173,7 +178,12 @@ static int can_loopback_add_rx_filter(const struct device *dev, can_rx_callback_
 
 	LOG_DBG("Setting filter ID: 0x%x, mask: 0x%x", filter->id, filter->mask);
 
+#ifdef CONFIG_CAN_FD_MODE
+	if ((filter->flags & ~(CAN_FILTER_IDE | CAN_FILTER_DATA |
+							CAN_FILTER_RTR | CAN_FILTER_FDF)) != 0) {
+#else
 	if ((filter->flags & ~(CAN_FILTER_IDE | CAN_FILTER_DATA | CAN_FILTER_RTR)) != 0) {
+#endif
 		LOG_ERR("unsupported CAN filter flags 0x%02x", filter->flags);
 		return -ENOTSUP;
 	}
@@ -249,6 +259,8 @@ static int can_loopback_stop(const struct device *dev)
 	}
 
 	data->started = false;
+
+	k_msgq_purge(&data->tx_msgq);
 
 	return 0;
 }
