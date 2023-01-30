@@ -123,7 +123,6 @@ static void uart_liteuart_irq_rx_enable(const struct device *dev)
 {
 	const struct uart_liteuart_device_config *config = dev->config;
 	uint8_t enable = litex_read8(config->ev_enable_addr);
-
 	litex_write8(enable | UART_EV_RX, config->ev_enable_addr);
 }
 
@@ -267,7 +266,6 @@ static void uart_liteuart_irq_callback_set(const struct device *dev,
 					   void *cb_data)
 {
 	struct uart_liteuart_data *data;
-
 	data = dev->data;
 	data->callback = cb;
 	data->cb_data = cb_data;
@@ -315,8 +313,14 @@ static int uart_liteuart_init(const struct device *dev)
 {
 	const struct uart_liteuart_device_config *config = dev->config;
 	litex_write8(UART_EV_TX | UART_EV_RX, config->ev_pending_addr);
+
+#ifdef CONFIG_UART_INTERRUPT_DRIVEN
+	config->irq_config_func(dev);
+#endif
+
 	return 0;
 }
+extern void plic_irq_handler2(void *a);
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 #define LITEX_UART_CONFIG_FUNC(node_id, n) \
@@ -324,7 +328,7 @@ static int uart_liteuart_init(const struct device *dev)
 	IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority), \
 			liteuart_uart_irq_handler, DEVICE_DT_INST_GET(n), \
 			0); \
-	irq_enable(DT_INST_IRQN(n)); \
+ 	irq_enable(DT_INST_IRQN(n)); \
 	}
 
 #define LITEX_UART_CONFIG_INIT(node_id, n) \
