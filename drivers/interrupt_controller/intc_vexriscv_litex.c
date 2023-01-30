@@ -18,6 +18,7 @@
 
 #define TIMER0_IRQ		DT_IRQN(DT_INST(0, litex_timer0))
 #define UART0_IRQ		DT_IRQN(DT_INST(0, litex_uart0))
+#define UART1_IRQ		DT_IRQN(DT_INST(1, litex_uart0))
 
 #define ETH0_IRQ		DT_IRQN(DT_INST(0, litex_eth0))
 
@@ -77,6 +78,10 @@ static void vexriscv_litex_irq_handler(const void *device)
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	if (irqs & (1 << UART0_IRQ)) {
 		ite = &_sw_isr_table[UART0_IRQ];
+		ite->isr(ite->arg);
+	}
+	if (irqs & (1 << UART1_IRQ)) {
+		ite = &_sw_isr_table[UART1_IRQ];
 		ite->isr(ite->arg);
 	}
 #endif
