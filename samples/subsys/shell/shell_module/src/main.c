@@ -12,7 +12,7 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/usb/usb_device.h>
 #include <ctype.h>
-
+#include <stdio.h>
 #ifdef CONFIG_ARCH_POSIX
 #include <unistd.h>
 #else
@@ -436,15 +436,21 @@ void main(void)
 #if DT_NODE_HAS_COMPAT(DT_CHOSEN(zephyr_shell_uart), zephyr_cdc_acm_uart)
 	const struct device *dev;
 	uint32_t dtr = 0;
+	printf("starting...\n");
 
 	dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_shell_uart));
 	if (!device_is_ready(dev) || usb_enable(NULL)) {
 		return;
 	}
 
+	int ret;
 	while (!dtr) {
-		uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr);
+		if ((ret = uart_line_ctrl_get(dev, UART_LINE_CTRL_DTR, &dtr)) < 0)
+			printf("uart_line_ctrl_get failed: %d\n", ret);
 		k_sleep(K_MSEC(100));
 	}
+#else
+#warning "Shell uart not supported"
+	printf("shell not supported... CONFIG_UART_INTERRUPT_DRIVER=y\nsystem halted.\n");
 #endif
 }
