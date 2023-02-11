@@ -25,6 +25,7 @@
 #include <iostream>
 #include <pthread.h>
 #include <semaphore.h>
+#include <time.h>
 
 #define log_msg printf
 
@@ -78,6 +79,7 @@ class mandel
     color_t col_pal[PAL_SIZE] = { 3, 2, 1, 0 };
     coord_t mark_x1, mark_y1, mark_x2, mark_y2;
     myDOUBLE last_xr, last_yr, ssw, ssh, transx, transy;
+    struct timespec tstart, tend;
 
     pthread_mutex_t canvas_sem;
     sem_t master_sem;
@@ -152,6 +154,17 @@ class mandel
     }
 
     /* class private functinos */
+    inline void timespec_diff(struct timespec *a, struct timespec *b, struct timespec *result)
+    {
+    	result->tv_sec  = a->tv_sec  - b->tv_sec;
+    	result->tv_nsec = a->tv_nsec - b->tv_nsec;
+    	if (result->tv_nsec < 0)
+    	{
+	        --result->tv_sec;
+	        result->tv_nsec += 1000000000L;
+	    }
+    }
+
     // abs() would calc sqr() as well, we don't need that for this fractal
     inline myDOUBLE abs2(std::complex<myDOUBLE> f)
     {
@@ -313,9 +326,6 @@ class mandel
             PSem(master_sem); // wait until all workers have finished
         }
         log_msg("all threads finished.\n");
-#ifndef C64
-        canvas_dump(canvas);
-#endif
     }
 
     void free_ressources(void)
@@ -333,12 +343,22 @@ public:
         : canvas(c), stacks(st), xres(xr), yres(yr)
     {
         //log_msg("mandelbrot set...\n");
+        if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
+            perror("clock_gettime()");
         for (int i = 0; i < PAL_SIZE; i++)
             col_pal[i] = i;
         pthread_mutex_init(&canvas_sem, nullptr);
         sem_init(&master_sem, 0, 0);
         mandel_setup(sqrt(NO_THREADS), xl, yl, xh, yh); // initialize some stuff, but don't calculate
         go();
+        if (clock_gettime(CLOCK_REALTIME, &tend) < 0)
+            perror("clock_gettime()");
+#ifndef C64
+        canvas_dump(canvas);
+#endif
+        struct timespec dt;
+        timespec_diff(&tend, &tstart, &dt);
+        std::cout << "mandelbrot set done in: " << dt.tv_sec << '.' << dt.tv_nsec / 1000000L << "s\n";
     }
     ~mandel()
     {

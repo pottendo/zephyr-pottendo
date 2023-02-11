@@ -37,16 +37,6 @@ static char *stacks;
 
 #endif
 
-static inline void timespec_diff(struct timespec *a, struct timespec *b,
-    struct timespec *result) {
-    result->tv_sec  = a->tv_sec  - b->tv_sec;
-    result->tv_nsec = a->tv_nsec - b->tv_nsec;
-    if (result->tv_nsec < 0) {
-        --result->tv_sec;
-        result->tv_nsec += 1000000000L;
-    }
-}
-
 #include "mandelbrot.h"
 
 int main(int argc, char *argv[])
@@ -64,15 +54,7 @@ int main(int argc, char *argv[])
     memset(&cv[0x3c00], 0xbc, 0x3f8);
     memset(&c64.get_mem()[0xd800], 0x98, 1000);
 #endif    
-    struct timespec ts1, ts2, dt;
-    if (clock_gettime(CLOCK_REALTIME, &ts1) != 0)
-        perror("clock_gettime(): ");
     mandel<MTYPE> *m = new mandel<MTYPE>{cv, stacks, -1.5, -1.0, 0.5, 1.0, IMG_W / PIXELW, IMG_H};
-    if (clock_gettime(CLOCK_REALTIME, &ts2) != 0)
-        perror("clock_gettime(): ");
-    timespec_diff(&ts2, &ts1, &dt);
-    std::cout << "mandelbrot set done in: " << dt.tv_sec << '.' << dt.tv_nsec / 1000000L << "s\n";
-
     delete m;
 #ifdef __ZEPHYR__
     while(1)
@@ -81,6 +63,6 @@ int main(int argc, char *argv[])
         sleep(10);
     }
 #endif
-    sleep(10);
+    sleep(2);
     return 0;
 }
