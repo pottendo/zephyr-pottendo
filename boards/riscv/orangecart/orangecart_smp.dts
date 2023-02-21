@@ -28,7 +28,7 @@
 	status = "okay";
 	current-speed = <115200>;
 };
-
+/*
 &liteuart1 {
 	status = "okay";
 	current-speed = <115200>;
@@ -37,7 +37,7 @@
 		status="okay";
 	};			
 };
-
+*/
 &spi0 {
 	status = "okay";
 };
