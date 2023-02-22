@@ -5,6 +5,7 @@
 /* fixme: introduce proper SOC KConfig item */
 #if defined(CONFIG_BOARD_ORANGECART_SMP) || defined(CONFIG_BOARD_ORANGECART_FPU)
 #include <stdint.h>
+//#include <zephyr/arch/riscv/arch.h>
 
 /*
  * needed for VexRiscV clint to make clock working 
@@ -21,3 +22,9 @@ void arch_irq_enable(unsigned int irq)
 			  : "r" (1 << irq));    
 }
 #endif /* CONFIG_BOARD_ORANGECARD_SMP */
+
+void led_ping(void)
+{
+	volatile char *led = 0xf0002000;
+	*led = (*led) + 50;	
+}
