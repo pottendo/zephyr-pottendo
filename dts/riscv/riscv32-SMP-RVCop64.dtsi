@@ -154,7 +154,7 @@
                     "rxfull";
                 status = "disabled";
             };
-/*
+
             liteuart1: serial@f0004800 {
                 compatible = "litex,uart0";
                 interrupt-parent = <&intc0>;
@@ -174,10 +174,10 @@
                     "ev_enable",
                     "txempty",
                     "rxfull";
-                interrupts = <0x3 7>;
+                interrupts = <0x4 7>;
                 status = "disabled";
              };
-*/
+
             spi0: spi@f0002800 {
                 compatible = "litex,spi";
                 reg = <0xf0002800 0x4
