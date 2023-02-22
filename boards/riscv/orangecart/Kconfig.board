@@ -4,6 +4,7 @@
 config BOARD_ORANGECART
 	bool "Board with LiteX/VexRiscV CPU"
 	depends on SOC_RISCV32_ORANGECART
+	select ATOMIC_OPERATIONS_C
 
 config BOARD_ORANGECART_FPU
 	bool "Board with LiteX/VexRiscV-SMP CPU"
