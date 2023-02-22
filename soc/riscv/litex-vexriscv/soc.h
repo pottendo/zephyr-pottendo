@@ -11,8 +11,6 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/arch/common/sys_io.h>
 
-#define RISCV_MSIP_BASE 0xf0010000
-
 #ifndef _ASMLANGUAGE
 /* CSR access helpers */
 
