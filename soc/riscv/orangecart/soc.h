@@ -4,12 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef __RISCV32_LITEX_VEXRISCV_SOC_H_
-#define __RISCV32_LITEX_VEXRISCV_SOC_H_
+#ifndef __RISCV32_ORANGECART_SOC_H_
+#define __RISCV32_ORANGECART_SOC_H_
 
 #include "../riscv-privilege/common/soc_common.h"
 #include <zephyr/devicetree.h>
 #include <zephyr/arch/common/sys_io.h>
+
+#ifdef CONFIG_SMP
+#define RISCV_MSIP_BASE 0xf0010000
+#endif
 
 #ifndef _ASMLANGUAGE
 /* CSR access helpers */
@@ -147,4 +151,4 @@ static inline uint32_t litex_read(uint32_t addr, uint32_t size)
 
 #endif /* _ASMLANGUAGE */
 
-#endif /* __RISCV32_LITEX_VEXRISCV_SOC_H_ */
+#endif /* __RISCV32_ORANGECART_SOC_H_ */
