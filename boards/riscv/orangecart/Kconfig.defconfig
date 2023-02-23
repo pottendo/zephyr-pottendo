@@ -1,4 +1,4 @@
-# Copyright (c) 2018 - 2019 Antmicro <www.antmicro.com>
+# Copyright (c) 2023 pottendo
 # SPDX-License-Identifier: Apache-2.0
 
 ############################################## RVCop64 original
@@ -20,13 +20,6 @@ config FPU
 config DISK_DRIVER_SDMMC
         default y if DISK_DRIVERS
 
-if NETWORKING
-
-config NET_L2_ETHERNET
-	default n
-
-endif # NETWORKING
-
 endif # BOARD_ORANGECART
 
 ############################################## FPU
@@ -35,7 +28,7 @@ config BOARD
 	default "orangecart_fpu"
 
 config SPI
-	default n
+	default y
 
 config FPU
     bool "Support floating point operations"
@@ -43,13 +36,6 @@ config FPU
 
 config DISK_DRIVER_SDMMC
         default y if DISK_DRIVERS
-
-if NETWORKING
-
-config NET_L2_ETHERNET
-	default n
-
-endif # NETWORKING
 
 endif # BOARD_ORANGECART_FPU
 
@@ -59,7 +45,7 @@ config BOARD
 	default "orangecart_smp"
 
 config SPI
-	default n
+	default y
 
 config FPU
     bool "Support floating point operations"
@@ -67,12 +53,5 @@ config FPU
 
 config DISK_DRIVER_SDMMC
         default y if DISK_DRIVERS
-
-if NETWORKING
-
-config NET_L2_ETHERNET
-	default n
-
-endif # NETWORKING
 
 endif # BOARD_ORANGECART_SMP
