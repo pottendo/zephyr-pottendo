@@ -24,10 +24,11 @@
 #include <complex>
 #include <iostream>
 #include <pthread.h>
+#include <signal.h>
 #include <semaphore.h>
 #include <time.h>
 
-#define log_msg printf
+typedef struct { uint16_t x; uint16_t y; } point_t;
 
 template <typename myDOUBLE>
 class mandel
@@ -35,7 +36,6 @@ class mandel
     typedef char* canvas_t;
     typedef uint16_t coord_t;
     typedef uint16_t color_t;
-    typedef struct { uint16_t x; uint16_t y; } point_t;
     struct tparam_t
     {
         int tno, width, height;
@@ -73,12 +73,13 @@ class mandel
     int max_iter = MAX_ITER;
 
     /* class local variables */
-    canvas_t &canvas;
-    char * &stacks;
+    pthread_attr_t attr[NO_THREADS];
+    canvas_t canvas;
+    char *stacks;
     uint16_t xres, yres;
-    color_t col_pal[PAL_SIZE] = { 3, 2, 1, 0 };
+    color_t col_pal[PAL_SIZE] = { 0, 1, 2, 3 };
     coord_t mark_x1, mark_y1, mark_x2, mark_y2;
-    myDOUBLE last_xr, last_yr, ssw, ssh, transx, transy;
+    myDOUBLE last_xr, last_yr, ssw, ssh, transx, transy, xratio;
     struct timespec tstart, tend;
 
     pthread_mutex_t canvas_sem;
@@ -184,7 +185,7 @@ class mandel
             nb_iter++;
         }
         if (nb_iter < max_iter)
-            return (nb_iter);
+            return (col_pal[(nb_iter % (PAL_SIZE - 1)) + 1]);
         else
             return 0;
     }
@@ -208,7 +209,7 @@ class mandel
             {
                 int d = mandel_calc_point(x, y);
                 //P(canvas_sem);
-                canvas_setpx(canvas, xk + xo, yk + yo, col_pal[d % PAL_SIZE]);
+                canvas_setpx(canvas, xk + xo, yk + yo, d);
                 //V(canvas_sem);
                 y += incy;
             }
@@ -226,8 +227,6 @@ class mandel
     int mandel_wrapper_2(void *param)
     {
         tparam_t *p = (tparam_t *)param;
-        // Wait to be kicked off by mainthread
-        //log_msg("thread %d waiting for kickoff\n", p->tno);
 #if defined(__ZEPHYR__) && defined(CONFIG_FPU)
 	// make sure FPU regs are saved during context switch
 	int r;
@@ -236,11 +235,9 @@ class mandel
 	    log_msg("%s: k_float_enable() failed: %d.\n", __FUNCTION__, r);
 	}
 #endif
-        while (true)
-        {
-            P(p->go);
-            sched_param sp;
-            int pol;
+        P(p->go);
+        sched_param sp;
+        int pol;
 #if 0
             int ret;
             pthread_getschedparam(worker_tasks[p->tno], &pol, &sp);
@@ -248,17 +245,14 @@ class mandel
             if ((ret = pthread_setschedparam(worker_tasks[p->tno], pol, &sp)) != 0)
                 log_msg("pthread setschedparam failed for thread %d, %d\n", p->tno, ret);
 #endif
-            pthread_getschedparam(worker_tasks[p->tno], &pol, &sp);
-            log_msg("starting thread %d with priority %d\n", p->tno, sp.sched_priority);
+        pthread_getschedparam(worker_tasks[p->tno], &pol, &sp);
+        log_msg("starting thread %d with priority %d\n", p->tno, sp.sched_priority);
 
-            //usleep(1000 * 200 * p->tno);
-            sched_yield();
-            mandel_helper(p->xl, p->yl, p->xh, p->yh, p->incx, p->incy, p->xoffset, p->yoffset, p->width, p->height);
-            log_msg("finished thread %d\n", p->tno);
-            VSem(p->sem); // report we've done our job
-            while (1)
-                usleep(1000 * 1000);
-        }
+        sched_yield();
+        mandel_helper(p->xl, p->yl, p->xh, p->yh, p->incx, p->incy, p->xoffset, p->yoffset, p->width, p->height);
+        log_msg("finished thread %d\n", p->tno);
+        VSem(p->sem); // report we've done our job
+
         return 0;
     }
 
@@ -271,7 +265,7 @@ class mandel
         ssh = last_yr / yres;
         transx = sx;
         transy = sy;
-        myDOUBLE stepx = (xres / thread_no) * ssw;
+        myDOUBLE stepx = (xres / thread_no) * ssw * xratio;
         myDOUBLE stepy = (yres / thread_no) * ssh;
         pthread_t th;
         if (thread_no > 16)
@@ -297,23 +291,27 @@ class mandel
                                      ty * stepy + stepy + transy,
                                      ssw, ssh, xoffset, yoffset,
                                      master_sem, this);
-                pthread_attr_t attr;
-                pthread_attr_init(&attr);
-                pthread_attr_setstack(&attr, stacks, STACK_SIZE);
-                pthread_attr_setschedpolicy(&attr, SCHED_RR);
+                pthread_attr_init(&attr[t]);
+                pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
+                pthread_attr_setschedpolicy(&attr[t], SCHED_RR);
                 int ret;
-                if ((ret = pthread_create(&th, &attr, mandel_wrapper, tp[t])) != 0)
+                if ((ret = pthread_create(&th, &attr[t], mandel_wrapper, tp[t])) != 0)
                     log_msg("pthread create failed for thread %d, %d\n", t, ret);
                 worker_tasks[t] = th;
                 t++;
-                stacks += STACK_SIZE;
                 pthread_detach(th);
+                usleep(20*1000); // needed to make zephyr happy when loggin is enabled. Seems some race with the the KickOff mutex. Maybe some bug?
             }
         }
     }
 
     void go(void)
     {
+        memset(canvas, 0, CSIZE);
+
+        if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
+            perror("clock_gettime()");
+
         for (int i = 0; i < NO_THREADS; i++)
         {
             //usleep(250 * 1000);
@@ -325,47 +323,61 @@ class mandel
             //log_msg("main thread waiting for %i threads...\n", i);
             PSem(master_sem); // wait until all workers have finished
         }
+        if (clock_gettime(CLOCK_REALTIME, &tend) < 0)
+            perror("clock_gettime()");
+
         log_msg("all threads finished.\n");
+        free_ressources();
     }
 
     void free_ressources(void)
     {
-        log_msg("mandel cleaning up...\n");
         for (int i = 0; i < NO_THREADS; i++)
         {
-            pthread_cancel(worker_tasks[i]);
+            int ret;
+#ifdef __ZEPHYR__
+            // needed to cleanup all resources, namely a mutex within a pthread
+            void *retval;
+            if ((ret = pthread_join(worker_tasks[i], &retval)) != 0)
+                log_msg("pthread_join failed: %d\n", ret);
+#endif
+            if ((ret = pthread_attr_destroy(&attr[i])) != 0)
+                log_msg("pthread_attr_destroy failed: %d\n", ret);
+
             delete tp[i];
         }
     }
 
 public:
-    mandel(canvas_t c, char *st, myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, uint16_t xr, uint16_t yr)
-        : canvas(c), stacks(st), xres(xr), yres(yr)
+    mandel(canvas_t c, char *st, myDOUBLE xl, myDOUBLE yl, myDOUBLE xh, myDOUBLE yh, uint16_t xr, uint16_t yr, myDOUBLE xrat = 1.0)
+        : canvas(c), stacks(st), xres(xr), yres(yr), xratio(xrat)
     {
-        //log_msg("mandelbrot set...\n");
-        if (clock_gettime(CLOCK_REALTIME, &tstart) < 0)
-            perror("clock_gettime()");
         for (int i = 0; i < PAL_SIZE; i++)
             col_pal[i] = i;
         pthread_mutex_init(&canvas_sem, nullptr);
         sem_init(&master_sem, 0, 0);
         mandel_setup(sqrt(NO_THREADS), xl, yl, xh, yh); // initialize some stuff, but don't calculate
         go();
-        if (clock_gettime(CLOCK_REALTIME, &tend) < 0)
-            perror("clock_gettime()");
+        dump_result();
+    }
+    ~mandel()
+    {
+        log_msg("%s destructor\n", __FUNCTION__);
+        pthread_mutex_destroy(&canvas_sem);
+        sem_destroy(&master_sem);
+    };
+    
+    char *get_stacks(void) { return stacks; }
+
+    void dump_result(void)
+    {
 #ifndef C64
         canvas_dump(canvas);
 #endif
         struct timespec dt;
         timespec_diff(&tend, &tstart, &dt);
-        std::cout << "mandelbrot set done in: " << dt.tv_sec << '.' << dt.tv_nsec / 1000000L << "s\n";
+        log_msg("mandelbrot set done in: %lld.%lds\n", dt.tv_sec, dt.tv_nsec / 1000000L);
     }
-    ~mandel()
-    {
-        free_ressources();
-        pthread_mutex_destroy(&canvas_sem);
-        sem_destroy(&master_sem);
-    };
 
     void select_start(point_t &p)
     {
@@ -375,7 +387,6 @@ public:
             mark_x1 = 0;
         if (mark_y1 < 0)
             mark_y1 = 0;
-        log_msg("rect start: %dx%d\n", mark_x1, mark_y1);
     }
 
     void select_end(point_t &p)
@@ -386,14 +397,14 @@ public:
             mark_x2 = 0;
         if (mark_y2 < 0)
             mark_y2 = 0;
-        log_msg("rect coord: %dx%d - %dx%d\n", mark_x1, mark_y1, mark_x2, mark_y2);
+        log_msg("rect coord: [%d,%d]x[%d,%d]\n", mark_x1, mark_y1, mark_x2, mark_y2);
         mandel_setup(sqrt(NO_THREADS),
-                     mark_x1 * ssw + transx,
-                     mark_y1 * ssh + transy,
-                     mark_x2 * ssw + transx,
-                     mark_y2 * ssh + transy);
+                     static_cast<myDOUBLE>(mark_x1 * ssw + transx),
+                     static_cast<myDOUBLE>(mark_y1 * ssh + transy),
+                     static_cast<myDOUBLE>(mark_x2 * ssw + transx),
+                     static_cast<myDOUBLE>(mark_y2 * ssh + transy));
         go();
-        free_ressources();
+        dump_result();
         mark_x1 = -1;
         mark_x2 = mark_x1;
         mark_y2 = mark_y1;

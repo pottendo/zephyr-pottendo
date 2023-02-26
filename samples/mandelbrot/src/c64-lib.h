@@ -1,5 +1,5 @@
 /*  -*-c-*-
- * File:		c64-linux.h
+ * File:		c64-lib.h
  * Date:		Fri Dec 16 09:39:01 2022
  * Author:		pottendo (pottendo)
  *  
@@ -13,8 +13,6 @@
 #ifndef __c64_linux_h__
 #define __c64_linux_h__
 #include <stdint.h>
-
-#define log_msg printf
 
 typedef enum {
     VICBank0 = 3, VICBank1 = 2, VICBank2 = 1, VICBank3 = 0,

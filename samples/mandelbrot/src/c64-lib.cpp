@@ -18,6 +18,8 @@
 #include <sys/mman.h>
 #endif
 
+#define log_msg printf
+
 #include <unistd.h>
 #include <iostream>
 #include "c64-lib.h"
@@ -27,16 +29,15 @@ c64::c64()
     mem = vic = cia1 = cia2 = sid = oc_ctrl = nullptr;
     mem = map_memory(c64_physaddress, 0x10000);
     if (mem == (unsigned char*) -1)
-	perror("map_memory failed.");
+	    perror("map_memory failed.");
     else
     {
-	vic = &mem[0xd000];
-	cia1 = &mem[0xdc00];
-	cia2 = &mem[0xdd00];
-	sid = &mem[0xd400];
-	oc_ctrl = &mem[0xdf00];
+	    vic = &mem[0xd000];
+	    cia1 = &mem[0xdc00];
+	    cia2 = &mem[0xdd00];
+	    sid = &mem[0xd400];
+	    oc_ctrl = &mem[0xdf00];
     }
-    
 }
 
 c64::~c64()

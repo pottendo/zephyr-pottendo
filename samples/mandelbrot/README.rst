@@ -8,7 +8,7 @@ Overview
 
 A sample that can be used with any :ref:`supported board <boards>` and
 prints calculates the mandelbrot set. Output either to the C64
-graphics memory or on the console (use C64=1 in pr.conf to select)
+graphics memory or on the console (use #define C64=1 src/main.cpp to select)
 
 This program makes heavy use of
 - posix threading
