@@ -15,6 +15,7 @@
 		zephyr,console = &liteuart0;
 		zephyr,shell-uart = &liteuart0;
 		zephyr,sram = &ram0;
+		zephyr,uart-pipe = &liteuart1;
 		/* zephyr,gdbstub-uart = &uart0; */
 	};
 
