@@ -17,6 +17,13 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(sample_gsm_ppp, LOG_LEVEL_DBG);
 
+#ifndef CONFIG_MODEM_SHELL
+void shell_fprintf(const struct shell *shell, enum shell_vt100_color,  const char *str, ...)
+{
+	printf(str);
+}
+#endif
+
 #define GSM_MODEM_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(zephyr_gsm_ppp)
 #define UART_NODE DT_BUS(GSM_MODEM_NODE)
 
@@ -110,17 +117,24 @@ static void modem_off_cb(const struct device *dev, void *user_data)
 	LOG_INF("GSM modem off callback fired");
 }
 
+int z_impl_sys_rand32_get(void)
+{
+	return k_uptime_get();
+}
+
 int main(void)
 {
 	const struct device *const uart_dev = DEVICE_DT_GET(UART_NODE);
-
+printf("%s: 1\n", __FUNCTION__);
 	/* Optional register modem power callbacks */
 	gsm_ppp_register_modem_power_callback(gsm_dev, modem_on_cb, modem_off_cb, NULL);
 
+printf("%s: 2\n", __FUNCTION__);
 	LOG_INF("Board '%s' APN '%s' UART '%s' device %p (%s)",
 		CONFIG_BOARD, CONFIG_MODEM_GSM_APN,
 		uart_dev->name, uart_dev, gsm_dev->name);
 
+printf("%s: 3\n", __FUNCTION__);
 	net_mgmt_init_event_callback(&mgmt_cb, event_handler,
 				     NET_EVENT_L4_CONNECTED |
 				     NET_EVENT_L4_DISCONNECTED);

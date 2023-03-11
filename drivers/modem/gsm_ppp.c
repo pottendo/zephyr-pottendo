@@ -175,7 +175,7 @@ static void gsm_rx(struct gsm_modem *gsm)
 
 	while (true) {
 		(void)k_sem_take(&gsm->gsm_data.rx_sem, K_FOREVER);
-
+		
 		/* The handler will listen AT channel */
 		gsm->context.cmd_handler.process(&gsm->context.cmd_handler,
 						 &gsm->context.iface);
@@ -483,11 +483,13 @@ static const struct modem_cmd read_rssi_cmd =
 #endif
 
 static const struct setup_cmd setup_modem_info_cmds[] = {
+#if 1
 	/* query modem info */
 	SETUP_CMD("AT+CGMI", "", on_cmd_atcmdinfo_manufacturer, 0U, ""),
 	SETUP_CMD("AT+CGMM", "", on_cmd_atcmdinfo_model, 0U, ""),
 	SETUP_CMD("AT+CGMR", "", on_cmd_atcmdinfo_revision, 0U, ""),
 	SETUP_CMD("AT+CGSN", "", on_cmd_atcmdinfo_imei, 0U, ""),
+#endif
 #if defined(CONFIG_MODEM_SIM_NUMBERS)
 	SETUP_CMD("AT+CIMI", "", on_cmd_atcmdinfo_imsi, 0U, ""),
 	SETUP_CMD("AT+CCID", "", on_cmd_atcmdinfo_iccid, 0U, ""),
@@ -499,6 +501,7 @@ static const struct setup_cmd setup_cmds[] = {
 	SETUP_CMD_NOHANDLE("ATE0"),
 	/* hang up */
 	SETUP_CMD_NOHANDLE("ATH"),
+#if 1
 	/* extended errors in numeric form */
 	SETUP_CMD_NOHANDLE("AT+CMEE=1"),
 	/* disable unsolicited network registration codes */
@@ -508,6 +511,7 @@ static const struct setup_cmd setup_cmds[] = {
 #if IS_ENABLED(DT_PROP(GSM_UART_NODE, hw_flow_control))
 	/* enable hardware flow control */
 	SETUP_CMD_NOHANDLE("AT+IFC=2,2"),
+#endif
 #endif
 };
 
@@ -764,6 +768,7 @@ static void gsm_finalize_connection(struct k_work *work)
 
 	gsm->state = GSM_PPP_REGISTERING;
 registering:
+//goto xxx;
 	/* Wait for cell tower registration */
 	ret = modem_cmd_send_nolock(&gsm->context.iface,
 				    &gsm->context.cmd_handler,
@@ -814,11 +819,12 @@ attaching:
 					K_MSEC(GSM_ATTACH_RETRY_DELAY_MSEC));
 		goto unlock;
 	}
-
+xxx:
 	/* Attached, clear retry counter */
 	LOG_DBG("modem attach returned %d, %s", ret, "read RSSI");
 	gsm->state = GSM_PPP_ATTACHED;
 	gsm->retries = GSM_RSSI_RETRIES;
+///goto yyy;
 
  attached:
 
@@ -854,7 +860,7 @@ attaching:
 		(void)gsm_work_reschedule(&gsm->gsm_configure_work, GSM_RETRY_DELAY);
 		goto unlock;
 	}
-
+yyy:
 	gsm->state = GSM_PPP_SETUP_DONE;
 	set_ppp_carrier_on(gsm);
 
@@ -1115,11 +1121,13 @@ static void gsm_configure(struct k_work *work)
 
 wait_at:
 	ret = modem_cmd_send_nolock(&gsm->context.iface,
+
 				    &gsm->context.cmd_handler,
 				    &response_cmds[0],
 				    ARRAY_SIZE(response_cmds),
 				    "AT", &gsm->sem_response,
 				    GSM_CMD_AT_TIMEOUT);
+
 	if (ret < 0) {
 		LOG_DBG("modem not ready %d", ret);
 		goto retry;
@@ -1136,9 +1144,11 @@ wait_at:
 		}
 
 		gsm->state = GSM_PPP_STATE_INIT;
+printf("%s: 1\n", __FUNCTION__);
 
 		k_work_init_delayable(&gsm->gsm_configure_work, mux_setup);
 	} else {
+printf("%s: 2\n", __FUNCTION__);
 		k_work_init_delayable(&gsm->gsm_configure_work, gsm_finalize_connection);
 	}
 

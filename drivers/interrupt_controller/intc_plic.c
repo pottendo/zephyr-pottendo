@@ -20,6 +20,8 @@
 #include <zephyr/sw_isr_table.h>
 #include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 #include <zephyr/irq.h>
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(plic_drv, 4);
 
 #define PLIC_MAX_PRIO	DT_INST_PROP(0, riscv_max_priority)
 #define PLIC_PRIO	DT_INST_REG_ADDR_BY_NAME(0, prio)
@@ -135,7 +137,7 @@ static void plic_irq_handler(const void *arg)
 
 	uint32_t irq;
 	struct _isr_table_entry *ite;
-
+led_ping();
 	/* Get the IRQ number generating the interrupt */
 	irq = regs->claim_complete;
 
@@ -182,6 +184,7 @@ static int plic_init(const struct device *dev)
 	    (volatile struct plic_regs_t *)PLIC_REG;
 	int i;
 
+	LOG_DBG("PLIC_EN_SIZE = %d, PLIC_IRQS = %d, en = %p, prio = %p", PLIC_EN_SIZE, PLIC_IRQS, (void *)PLIC_IRQ_EN, (void *)PLIC_PRIO); 
 	/* Ensure that all interrupts are disabled initially */
 	for (i = 0; i < PLIC_EN_SIZE; i++) {
 		*en = 0U;
@@ -203,7 +206,6 @@ static int plic_init(const struct device *dev)
 		    plic_irq_handler,
 		    NULL,
 		    0);
-
 	/* Enable IRQ for PLIC driver */
 	irq_enable(RISCV_MACHINE_EXT_IRQ);
 

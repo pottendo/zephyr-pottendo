@@ -14,6 +14,9 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/types.h>
 
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(lite_uart_drv, 4);
+
 #define UART_EV_TX		(1 << 0)
 #define UART_EV_RX		(1 << 1)
 
@@ -317,10 +320,8 @@ static int uart_liteuart_init(const struct device *dev)
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 	config->irq_config_func(dev);
 #endif
-
 	return 0;
 }
-extern void plic_irq_handler2(void *a);
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 #define LITEX_UART_CONFIG_FUNC(node_id, n) \
@@ -328,8 +329,10 @@ extern void plic_irq_handler2(void *a);
 	IRQ_CONNECT(DT_INST_IRQN(n), DT_INST_IRQ(n, priority), \
 			liteuart_uart_irq_handler, DEVICE_DT_INST_GET(n), \
 			0); \
- 	irq_enable(DT_INST_IRQN(n)); \
+	irq_enable(DT_INST_IRQN(n)); \
 	}
+
+// 		LOG_DBG("dev name '%s' - instance: %d, irq = %d", dev->name, n, DT_INST_IRQN(n)); 
 
 #define LITEX_UART_CONFIG_INIT(node_id, n) \
 	.irq_config_func = uart_config_func_##n
