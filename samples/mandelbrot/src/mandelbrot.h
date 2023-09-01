@@ -71,6 +71,7 @@ class mandel
     tparam_t *tp[NO_THREADS];
     //char *stacks[NO_THREADS];
     int max_iter = MAX_ITER;
+    uint8_t _mask;
 
     /* class local variables */
     pthread_attr_t attr[NO_THREADS];
@@ -108,7 +109,7 @@ class mandel
         uint32_t h = x % (8 / PIXELW);
         uint32_t shift = (8 / PIXELW - 1) - h;
         uint32_t val = (c << (shift * PIXELW));
-
+        uint8_t mask = ~(_mask << (shift * PIXELW));
         const uint32_t lineb = IMG_W / 8 * 8; // line 8 bytes per 8x8 pixel
         const uint32_t colb = 8;              // 8 bytes per 8x8 pixel
 
@@ -121,7 +122,7 @@ class mandel
             return;
         }
         char t = canvas[cidx];
-        t %= ~val;
+        t &= mask;
         t |= val;
         canvas[cidx] = t;
 #ifdef __ZEPHYR__
@@ -354,6 +355,12 @@ public:
     {
         for (int i = 0; i < PAL_SIZE; i++)
             col_pal[i] = i;
+        _mask = 1;
+        for (int i = 1; i < PIXELW; i++) 
+        {
+            _mask = (_mask << 1) | 1;
+        }
+
         pthread_mutex_init(&canvas_sem, nullptr);
         sem_init(&master_sem, 0, 0);
         mandel_setup(sqrt(NO_THREADS), xl, yl, xh, yh); // initialize some stuff, but don't calculate
