@@ -67,7 +67,7 @@ std::vector<rec_t> recs = {
         {{120,75}, {159, 125}},
     };
 
-int main(int argc, char *argv[])
+int main(void)
 {
 #ifndef __ZEPHYR__
     stacks = new char[STACK_SIZE * NO_THREADS]();
