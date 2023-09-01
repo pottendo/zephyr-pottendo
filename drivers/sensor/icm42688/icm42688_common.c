@@ -49,7 +49,6 @@ int icm42688_reset(const struct device *dev)
 	}
 
 	res = icm42688_spi_read(&dev_cfg->spi, REG_WHO_AM_I, &value, 1);
-
 	if (res) {
 		return res;
 	}
@@ -59,8 +58,7 @@ int icm42688_reset(const struct device *dev)
 		return -EINVAL;
 	}
 
-	LOG_DBG("device id: 0x%02X", value);
-	return res;
+	return 0;
 }
 
 int icm42688_configure(const struct device *dev, struct icm42688_cfg *cfg)
@@ -176,8 +174,8 @@ int icm42688_configure(const struct device *dev, struct icm42688_cfg *cfg)
 
 	uint8_t int_config1 = 0;
 
-	if (cfg->fifo_en && (cfg->accel_odr <= ICM42688_ACCEL_ODR_4000 ||
-			     cfg->gyro_odr <= ICM42688_GYRO_ODR_4000)) {
+	if ((cfg->accel_odr <= ICM42688_ACCEL_ODR_4000 ||
+	     cfg->gyro_odr <= ICM42688_GYRO_ODR_4000)) {
 		int_config1 = FIELD_PREP(BIT_INT_TPULSE_DURATION, 1) |
 			      FIELD_PREP(BIT_INT_TDEASSERT_DISABLE, 1);
 	}

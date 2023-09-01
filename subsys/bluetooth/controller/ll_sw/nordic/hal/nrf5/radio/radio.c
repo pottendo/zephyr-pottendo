@@ -5,13 +5,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <zephyr/sys/dlist.h>
 #include <zephyr/toolchain.h>
 #include <zephyr/dt-bindings/gpio/gpio.h>
 #include <soc.h>
 
 #include <hal/nrf_rtc.h>
 #include <hal/nrf_timer.h>
+#include <hal/nrf_radio.h>
 #include <hal/nrf_ccm.h>
 #include <hal/nrf_aar.h>
 
@@ -592,7 +592,7 @@ static uint32_t last_pdu_end_us;
 
 uint32_t radio_is_done(void)
 {
-	if (NRF_RADIO->EVENTS_END != 0) {
+	if (NRF_RADIO->NRF_RADIO_TXRX_END_EVENT != 0) {
 		/* On packet END event increment last packet end time value.
 		 * Note: this depends on the function being called exactly once
 		 * in the ISR function.
@@ -666,6 +666,18 @@ void *radio_pkt_decrypt_get(void)
 #elif !defined(HAL_RADIO_PDU_LEN_MAX)
 #error "Undefined HAL_RADIO_PDU_LEN_MAX."
 #endif
+
+#if defined(CONFIG_BT_CTLR_ADV_ISO) || defined(CONFIG_BT_CTLR_SYNC_ISO)
+/* Dedicated Rx PDU Buffer for Control PDU independent of node_rx with BIS Data
+ * PDU buffer
+ */
+static uint8_t pkt_big_ctrl[sizeof(struct pdu_big_ctrl)];
+
+void *radio_pkt_big_ctrl_get(void)
+{
+	return pkt_big_ctrl;
+}
+#endif /* CONFIG_BT_CTLR_ADV_ISO || CONFIG_BT_CTLR_SYNC_ISO */
 
 #if !defined(CONFIG_BT_CTLR_TIFS_HW)
 static uint8_t sw_tifs_toggle;

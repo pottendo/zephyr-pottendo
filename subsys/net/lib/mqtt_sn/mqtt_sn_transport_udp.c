@@ -48,7 +48,7 @@ static int tp_udp_init(struct mqtt_sn_transport *transport)
 	struct mqtt_sn_transport_udp *udp = UDP_TRANSPORT(transport);
 	int err;
 
-	udp->sock = zsock_socket(PF_INET, SOCK_DGRAM, 0);
+	udp->sock = zsock_socket(udp->gwaddr.sa_family, SOCK_DGRAM, 0);
 	if (udp->sock < 0) {
 		return errno;
 	}
@@ -61,7 +61,7 @@ static int tp_udp_init(struct mqtt_sn_transport *transport)
 	out = get_ip_str((struct sockaddr *)&udp->gwaddr, ip, sizeof(ip));
 	if (out != NULL) {
 		LOG_DBG("Connecting to IP %s:%u", out,
-			((struct sockaddr_in *)&udp->gwaddr)->sin_port);
+			ntohs(((struct sockaddr_in *)&udp->gwaddr)->sin_port));
 	}
 #endif
 

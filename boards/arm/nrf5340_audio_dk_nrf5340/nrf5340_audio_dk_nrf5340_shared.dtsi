@@ -1,3 +1,5 @@
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
 / {
 	leds:	leds {
 		compatible = "gpio-leds";
@@ -37,7 +39,6 @@
 			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 			label = "4 LED_MONO_GREEN";
 		};
-
 	};
 
 	buttons {
@@ -45,22 +46,27 @@
 		button_1_vol_dn: button_1_vol_dn {
 			gpios = <&gpio0 2 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 			label = "Push button 1";
+			zephyr,code = <INPUT_KEY_VOLUMEDOWN>;
 		};
 		button_2_vol_up: button_2_vol_up {
 			gpios = <&gpio0 3 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 			label = "Push button 2";
+			zephyr,code = <INPUT_KEY_VOLUMEUP>;
 		};
 		button3: button_3 {
 			gpios = <&gpio0 4 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 			label = "Push button 3";
+			zephyr,code = <INPUT_KEY_3>;
 		};
 		button4: button_4 {
 			gpios = <&gpio0 6 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 			label = "Push button 4";
+			zephyr,code = <INPUT_KEY_4>;
 		};
 		button5: button_5 {
 			gpios = <&gpio0 5 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 			label = "Push button 5";
+			zephyr,code = <INPUT_KEY_5>;
 		};
 	};
 
@@ -79,6 +85,8 @@
 		sw2 = &button3;
 		sw3 = &button4;
 		sw4 = &button5;
+		mcuboot-led0 = &led1_blue;
+		mcuboot-button0 = &button3;
 		watchdog0 = &wdt0;
 	};
 };

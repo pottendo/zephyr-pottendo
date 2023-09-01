@@ -17,12 +17,13 @@
 #include <zephyr/kernel.h>
 #include <zephyr/arch/cpu.h>
 #if defined(CONFIG_CPU_CORTEX_M)
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
+#include <cmsis_core.h>
 #elif defined(CONFIG_CPU_AARCH32_CORTEX_A) \
 	|| defined(CONFIG_CPU_AARCH32_CORTEX_R)
 #include <zephyr/drivers/interrupt_controller/gic.h>
 #endif
 #include <zephyr/sys/__assert.h>
+#include <zephyr/sys/barrier.h>
 #include <zephyr/toolchain.h>
 #include <zephyr/linker/sections.h>
 #include <zephyr/sw_isr_table.h>
@@ -281,8 +282,8 @@ void irq_target_state_set_all_non_secure(void)
 		NVIC->ICER[i] = 0xFFFFFFFF;
 	}
 
-	__DSB();
-	__ISB();
+	barrier_dsync_fence_full();
+	barrier_isync_fence_full();
 
 	/* Set all NVIC interrupt lines to target Non-Secure */
 	for (i = 0; i < sizeof(NVIC->ITNS) / sizeof(NVIC->ITNS[0]); i++) {

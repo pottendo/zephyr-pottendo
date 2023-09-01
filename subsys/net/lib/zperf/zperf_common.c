@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <zephyr/init.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 
@@ -12,8 +13,6 @@
 
 LOG_MODULE_REGISTER(net_zperf, CONFIG_NET_ZPERF_LOG_LEVEL);
 
-#define ZPERF_WORK_Q_THREAD_PRIORITY K_LOWEST_APPLICATION_THREAD_PRIO
-#define ZPERF_WORK_Q_STACK_SIZE 2048
 /* Get some useful debug routings from net_private.h, requires
  * that NET_LOG_ENABLED is set.
  */
@@ -42,7 +41,10 @@ struct sockaddr_in *zperf_get_sin(void)
 	return &in4_addr_my;
 }
 
-K_THREAD_STACK_DEFINE(zperf_work_q_stack, ZPERF_WORK_Q_STACK_SIZE);
+#define ZPERF_WORK_Q_THREAD_PRIORITY                                                               \
+	CLAMP(CONFIG_ZPERF_WORK_Q_THREAD_PRIORITY, K_HIGHEST_APPLICATION_THREAD_PRIO,              \
+	      K_LOWEST_APPLICATION_THREAD_PRIO)
+K_THREAD_STACK_DEFINE(zperf_work_q_stack, CONFIG_ZPERF_WORK_Q_STACK_SIZE);
 
 static struct k_work_q zperf_work_q;
 
@@ -212,14 +214,13 @@ void zperf_async_work_submit(struct k_work *work)
 	k_work_submit_to_queue(&zperf_work_q, work);
 }
 
-static int zperf_init(const struct device *unused)
+static int zperf_init(void)
 {
-	ARG_UNUSED(unused);
 
 	k_work_queue_init(&zperf_work_q);
 	k_work_queue_start(&zperf_work_q, zperf_work_q_stack,
-			   K_THREAD_STACK_SIZEOF(zperf_work_q_stack),
-			   ZPERF_WORK_Q_THREAD_PRIORITY, NULL);
+			   K_THREAD_STACK_SIZEOF(zperf_work_q_stack), ZPERF_WORK_Q_THREAD_PRIORITY,
+			   NULL);
 	k_thread_name_set(&zperf_work_q.thread, "zperf_work_q");
 
 	zperf_udp_uploader_init();

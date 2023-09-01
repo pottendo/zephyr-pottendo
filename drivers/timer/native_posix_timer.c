@@ -12,7 +12,7 @@
  */
 #include "zephyr/types.h"
 #include <zephyr/irq.h>
-#include <zephyr/device.h>
+#include <zephyr/init.h>
 #include <zephyr/drivers/timer/system_timer.h>
 #include <zephyr/sys_clock.h>
 #include "timer_model.h"
@@ -123,9 +123,8 @@ void sys_clock_disable(void)
  *
  * Enable the hw timer, setting its tick period, and setup its interrupt
  */
-static int sys_clock_driver_init(const struct device *dev)
+static int sys_clock_driver_init(void)
 {
-	ARG_UNUSED(dev);
 
 	tick_period = 1000000ul / CONFIG_SYS_CLOCK_TICKS_PER_SEC;
 

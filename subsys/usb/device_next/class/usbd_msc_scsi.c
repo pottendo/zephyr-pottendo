@@ -72,6 +72,7 @@ enum scsi_opcode {
 	READ_CAPACITY_10 = 0x25,
 	READ_10 = 0x28,
 	WRITE_10 = 0x2A,
+	MODE_SENSE_10 = 0x5A,
 };
 
 SCSI_CMD_STRUCT(TEST_UNIT_READY) {
@@ -169,6 +170,8 @@ struct scsi_inquiry_response {
 	 * parameters and we don't claim conformance to specific versions.
 	 */
 } __packed;
+
+#define MODE_SENSE_PAGE_CODE_ALL_PAGES		0x3F
 
 SCSI_CMD_STRUCT(MODE_SENSE_6) {
 	uint8_t opcode;
@@ -298,6 +301,30 @@ SCSI_CMD_STRUCT(WRITE_10) {
 	uint8_t control;
 } __packed;
 
+SCSI_CMD_STRUCT(MODE_SENSE_10) {
+	uint8_t opcode;
+	uint8_t llbaa_dbd;
+	uint8_t page;
+	uint8_t subpage;
+	uint8_t reserved4;
+	uint8_t reserved5;
+	uint8_t reserved6;
+	uint16_t allocation_length;
+	uint8_t control;
+} __packed;
+
+/* SPC-5 7.5.6 Mode parameter header formats
+ * Table 444 — Mode parameter header(10)
+ */
+struct scsi_mode_sense_10_response {
+	uint16_t mode_data_length;
+	uint8_t medium_type;
+	uint8_t device_specific_parameter;
+	uint8_t longlba;
+	uint8_t reserved5;
+	uint16_t block_descriptor_length;
+} __packed;
+
 static int update_disk_info(struct scsi_ctx *const ctx)
 {
 	int status = disk_access_status(ctx->disk);
@@ -341,6 +368,15 @@ static size_t not_ready(struct scsi_ctx *ctx, enum scsi_additional_sense_code as
 {
 	ctx->status = CHECK_CONDITION;
 	ctx->sense_key = NOT_READY;
+	ctx->asc = asc;
+
+	return 0;
+}
+
+static size_t medium_error(struct scsi_ctx *ctx, enum scsi_additional_sense_code asc)
+{
+	ctx->status = CHECK_CONDITION;
+	ctx->sense_key = MEDIUM_ERROR;
 	ctx->asc = asc;
 
 	return 0;
@@ -423,7 +459,7 @@ static int fill_inquiry(struct scsi_ctx *ctx,
 
 	memset(&r, 0, sizeof(struct scsi_inquiry_response));
 
-	/* Accesible; Direct access block device (SBC) */
+	/* Accessible; Direct access block device (SBC) */
 	r.peripheral = 0x00;
 	/* Removable; not a part of conglomerate. Note that when device is
 	 * accessible via USB Mass Storage, it should always be marked as
@@ -490,7 +526,7 @@ static int fill_vpd_page(struct scsi_ctx *ctx, enum vpd_page_code page,
 		return -ENOTSUP;
 	}
 
-	/* Accesible; Direct access block device (SBC) */
+	/* Accessible; Direct access block device (SBC) */
 	buf[0] = 0x00;
 	buf[1] = page;
 	sys_put_be16(offset, &buf[2]);
@@ -536,13 +572,17 @@ SCSI_CMD_HANDLER(MODE_SENSE_6)
 
 	ctx->cmd_is_data_read = true;
 
+	if (cmd->page != MODE_SENSE_PAGE_CODE_ALL_PAGES || cmd->subpage != 0) {
+		return illegal_request(ctx, INVALID_FIELD_IN_CDB);
+	}
+
 	r.mode_data_length = 3;
 	r.medium_type = 0x00;
 	r.device_specific_parameter = 0x00;
 	r.block_descriptor_length = 0x00;
 
 	BUILD_ASSERT(sizeof(r) <= CONFIG_USBD_MSC_SCSI_BUFFER_SIZE);
-	length = MIN(sys_be16_to_cpu(cmd->allocation_length), sizeof(r));
+	length = MIN(cmd->allocation_length, sizeof(r));
 	memcpy(data_in_buf, &r, length);
 	return good(ctx, length);
 }
@@ -707,6 +747,7 @@ static size_t store_write_10(struct scsi_ctx *ctx, const uint8_t *buf, size_t le
 {
 	uint32_t remaining_sectors;
 	uint32_t sectors;
+	bool error = false;
 
 	remaining_sectors = ctx->remaining_data / ctx->sector_size;
 	sectors = MIN(length, ctx->remaining_data) / ctx->sector_size;
@@ -714,17 +755,24 @@ static size_t store_write_10(struct scsi_ctx *ctx, const uint8_t *buf, size_t le
 		/* Flush cache and terminate transfer */
 		sectors = 0;
 		remaining_sectors = 0;
+		error = true;
 	}
 
 	/* Flush cache if this is the last sector in transfer */
 	if (remaining_sectors - sectors == 0) {
 		if (disk_access_ioctl(ctx->disk, DISK_IOCTL_CTRL_SYNC, NULL)) {
 			LOG_ERR("Disk cache sync failed");
+			error = true;
 		}
 	}
 
 	ctx->lba += sectors;
-	return sectors * ctx->sector_size;
+
+	if (error) {
+		return medium_error(ctx, WRITE_ERROR);
+	} else {
+		return sectors * ctx->sector_size;
+	}
 }
 
 SCSI_CMD_HANDLER(WRITE_10)
@@ -747,6 +795,55 @@ SCSI_CMD_HANDLER(WRITE_10)
 	ctx->remaining_data = ctx->sector_size * transfer_length;
 
 	return good(ctx, 0);
+}
+
+/* SPC-5 6.15 MODE SENSE(10) command */
+SCSI_CMD_HANDLER(MODE_SENSE_10)
+{
+	struct scsi_mode_sense_10_response r;
+	int length;
+
+	ctx->cmd_is_data_read = true;
+
+	if (cmd->page != MODE_SENSE_PAGE_CODE_ALL_PAGES || cmd->subpage != 0) {
+		return illegal_request(ctx, INVALID_FIELD_IN_CDB);
+	}
+
+	r.mode_data_length = sys_cpu_to_be16(6);
+	r.medium_type = 0x00;
+	r.device_specific_parameter = 0x00;
+	r.longlba = 0x00;
+	r.reserved5 = 0x00;
+	r.block_descriptor_length = sys_cpu_to_be16(0);
+
+	BUILD_ASSERT(sizeof(r) <= CONFIG_USBD_MSC_SCSI_BUFFER_SIZE);
+	length = MIN(sys_be16_to_cpu(cmd->allocation_length), sizeof(r));
+	memcpy(data_in_buf, &r, length);
+
+	return good(ctx, length);
+}
+
+int scsi_usb_boot_cmd_len(const uint8_t *cb, int len)
+{
+	/* Universal Serial Bus Mass Storage Specification For Bootability
+	 * requires device to accept CBW padded to 12 bytes for commands
+	 * documented in Bootability specification. Windows 11 uses padding
+	 * for REQUEST SENSE command.
+	 */
+	if (len != 12) {
+		return len;
+	}
+
+	switch (cb[0]) {
+	case TEST_UNIT_READY:	return sizeof(SCSI_CMD_STRUCT(TEST_UNIT_READY));
+	case REQUEST_SENSE:	return sizeof(SCSI_CMD_STRUCT(REQUEST_SENSE));
+	case INQUIRY:		return sizeof(SCSI_CMD_STRUCT(INQUIRY));
+	case READ_CAPACITY_10:	return sizeof(SCSI_CMD_STRUCT(READ_CAPACITY_10));
+	case READ_10:		return sizeof(SCSI_CMD_STRUCT(READ_10));
+	case WRITE_10:		return sizeof(SCSI_CMD_STRUCT(WRITE_10));
+	case MODE_SENSE_10:	return sizeof(SCSI_CMD_STRUCT(MODE_SENSE_10));
+	default:		return len;
+	}
 }
 
 size_t scsi_cmd(struct scsi_ctx *ctx, const uint8_t *cb, int len,
@@ -779,6 +876,7 @@ size_t scsi_cmd(struct scsi_ctx *ctx, const uint8_t *cb, int len,
 	SCSI_CMD(READ_CAPACITY_10);
 	SCSI_CMD(READ_10);
 	SCSI_CMD(WRITE_10);
+	SCSI_CMD(MODE_SENSE_10);
 
 	LOG_ERR("Unknown SCSI opcode 0x%02x", cb[0]);
 	return illegal_request(ctx, INVALID_FIELD_IN_CDB);

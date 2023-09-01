@@ -12,18 +12,14 @@
 
 #include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
+#include <zephyr/posix/fcntl.h>
 #include <zephyr/sys/util.h>
 #include <zephyr/ztest.h>
 
-#ifdef CONFIG_ARCH_POSIX
-#include <fcntl.h>
-#else
-#include <zephyr/posix/fcntl.h>
-#include <zephyr/posix/unistd.h>
-#endif
-
 LOG_MODULE_DECLARE(net_test, CONFIG_NET_SOCKETS_LOG_LEVEL);
 
-extern struct k_work_q test_socketpair_work_q;
+struct net_socketpair_fixture {
+	int sv[2];
+};
 
 #endif /* TEST_SOCKETPAIR_THREAD_H_ */

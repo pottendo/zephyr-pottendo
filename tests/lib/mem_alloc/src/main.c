@@ -56,7 +56,8 @@ union aligntest {
 };
 
 
-#if defined(CONFIG_MINIMAL_LIBC) && (CONFIG_MINIMAL_LIBC_MALLOC_ARENA_SIZE == 0)
+#if defined(CONFIG_COMMON_LIBC_MALLOC) && \
+	(CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE == 0)
 __no_optimization void _test_no_mem_malloc(void)
 {
 	int *iptr = NULL;
@@ -242,10 +243,10 @@ ZTEST(c_lib_dynamic_memalloc, test_realloc)
  *
  * @see malloc(), reallocarray(), free()
  */
-#ifdef CONFIG_NEWLIB_LIBC
+#if defined(CONFIG_NEWLIB_LIBC) || defined(CONFIG_ARMCLANG_STD_LIBC)
 ZTEST(c_lib_dynamic_memalloc, test_reallocarray)
 {
-	/* reallocarray not implemented for newlib */
+	/* reallocarray not implemented for newlib or arm libc */
 	ztest_test_skip();
 }
 ZTEST(c_lib_dynamic_memalloc, test_calloc)

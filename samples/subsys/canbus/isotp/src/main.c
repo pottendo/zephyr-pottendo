@@ -7,10 +7,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/canbus/isotp.h>
 
-
-#define RX_THREAD_STACK_SIZE 512
-#define RX_THREAD_PRIORITY 2
-
 const struct isotp_fc_opts fc_opts_8_0 = {.bs = 8, .stmin = 0};
 const struct isotp_fc_opts fc_opts_0_5 = {.bs = 0, .stmin = 5};
 
@@ -39,8 +35,8 @@ const struct device *can_dev;
 struct isotp_recv_ctx recv_ctx_8_0;
 struct isotp_recv_ctx recv_ctx_0_5;
 
-K_THREAD_STACK_DEFINE(rx_8_0_thread_stack, RX_THREAD_STACK_SIZE);
-K_THREAD_STACK_DEFINE(rx_0_5_thread_stack, RX_THREAD_STACK_SIZE);
+K_THREAD_STACK_DEFINE(rx_8_0_thread_stack, CONFIG_SAMPLE_RX_THREAD_STACK_SIZE);
+K_THREAD_STACK_DEFINE(rx_0_5_thread_stack, CONFIG_SAMPLE_RX_THREAD_STACK_SIZE);
 struct k_thread rx_8_0_thread_data;
 struct k_thread rx_0_5_thread_data;
 
@@ -141,7 +137,7 @@ void send_complette_cb(int error_nr, void *arg)
  * @brief Main application entry point.
  *
  */
-void main(void)
+int main(void)
 {
 	k_tid_t tid;
 	static struct isotp_send_ctx send_ctx_8_0;
@@ -151,38 +147,42 @@ void main(void)
 	can_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_canbus));
 	if (!device_is_ready(can_dev)) {
 		printk("CAN: Device driver not ready.\n");
-		return;
+		return 0;
 	}
 
 #ifdef CONFIG_SAMPLE_LOOPBACK_MODE
 	ret = can_set_mode(can_dev, CAN_MODE_LOOPBACK);
 	if (ret != 0) {
 		printk("CAN: Failed to set loopback mode [%d]", ret);
-		return;
+		return 0;
 	}
 #endif /* CONFIG_SAMPLE_LOOPBACK_MODE */
 
 	ret = can_start(can_dev);
 	if (ret != 0) {
 		printk("CAN: Failed to start device [%d]\n", ret);
-		return;
+		return 0;
 	}
 
 	tid = k_thread_create(&rx_8_0_thread_data, rx_8_0_thread_stack,
 			      K_THREAD_STACK_SIZEOF(rx_8_0_thread_stack),
 			      rx_8_0_thread, NULL, NULL, NULL,
-			      RX_THREAD_PRIORITY, 0, K_NO_WAIT);
+			      CONFIG_SAMPLE_RX_THREAD_PRIORITY, 0, K_NO_WAIT);
 	if (!tid) {
 		printk("ERROR spawning rx thread\n");
+		return 0;
 	}
+	k_thread_name_set(tid, "rx_8_0");
 
 	tid = k_thread_create(&rx_0_5_thread_data, rx_0_5_thread_stack,
 			      K_THREAD_STACK_SIZEOF(rx_0_5_thread_stack),
 			      rx_0_5_thread, NULL, NULL, NULL,
-			      RX_THREAD_PRIORITY, 0, K_NO_WAIT);
+			      CONFIG_SAMPLE_RX_THREAD_PRIORITY, 0, K_NO_WAIT);
 	if (!tid) {
 		printk("ERROR spawning rx thread\n");
+		return 0;
 	}
+	k_thread_name_set(tid, "rx_0_5");
 
 	printk("Start sending data\n");
 

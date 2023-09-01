@@ -81,6 +81,12 @@
 				reg = <0x6>;
 				#io-channel-cells = <1>;
   			};
+
+			test_i2c_ads1112: ads1112@7 {
+				compatible = "ti,ads1112";
+				reg = <0x7>;
+				#io-channel-cells = <1>;
+			};
 		};
 
 		test_spi: spi@33334444 {
@@ -93,6 +99,9 @@
 
 			/* one entry for every devices at spi.dtsi */
 			cs-gpios = <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
+				   <&test_gpio 0 0>,
 				   <&test_gpio 0 0>,
 				   <&test_gpio 0 0>,
 				   <&test_gpio 0 0>,
@@ -171,6 +180,54 @@
 				spi-max-frequency = <0>;
 				drdyb-gpios = <&test_gpio 0 0>;
 				#io-channel-cells = <2>;
+			};
+
+			test_spi_ads7052: ads7052@9 {
+				compatible = "ti,ads7052";
+				reg = <0x9>;
+				spi-max-frequency = <12000000>;
+				#io-channel-cells = <1>;
+			};
+
+			test_spi_max11254: max11254@a {
+				compatible = "maxim,max11254";
+				reg = <0xa>;
+				spi-max-frequency = <0>;
+				gpio0-enable;
+				gpio1-enable;
+				gpio0-direction;
+				gpio1-direction;
+				gpo0-enable;
+				gpo1-enable;
+				drdy-gpios = <&test_gpio 0 0>;
+				self-calibration;
+				#io-channel-cells = <1>;
+			};
+
+			test_spi_max11253: max11253@b {
+				compatible = "maxim,max11253";
+				reg = <0xb>;
+				spi-max-frequency = <0>;
+				gpio0-enable;
+				gpio1-enable;
+				gpio0-direction;
+				gpio1-direction;
+				gpo0-enable;
+				gpo1-enable;
+				drdy-gpios = <&test_gpio 0 0>;
+				self-calibration;
+				#io-channel-cells = <1>;
+			};
+
+
+			test_spi_ads114s08: ads114s08@9 {
+				compatible = "ti,ads114s08";
+				reg = <0x9>;
+				spi-max-frequency = <0>;
+				#io-channel-cells = <1>;
+				reset-gpios = <&test_gpio 0 0>;
+				drdy-gpios = <&test_gpio 0 0>;
+				start-sync-gpios = <&test_gpio 0 0>;
 			};
 		};
 	};

@@ -21,10 +21,11 @@
 #include "net.h"
 #include "foundation.h"
 #include "beacon.h"
-#include "host/ecc.h"
 #include "prov.h"
 #include "proxy.h"
 #include "pb_gatt_srv.h"
+#include "solicitation.h"
+#include "statistic.h"
 
 #define LOG_LEVEL CONFIG_BT_MESH_ADV_LOG_LEVEL
 #include <zephyr/logging/log.h>
@@ -41,9 +42,34 @@ const uint8_t bt_mesh_adv_type[BT_MESH_ADV_TYPES] = {
 	[BT_MESH_ADV_URI]    = BT_DATA_URI,
 };
 
+static bool active_scanning;
 static K_FIFO_DEFINE(bt_mesh_adv_queue);
 static K_FIFO_DEFINE(bt_mesh_relay_queue);
 static K_FIFO_DEFINE(bt_mesh_friend_queue);
+
+void bt_mesh_adv_send_start(uint16_t duration, int err, struct bt_mesh_adv *adv)
+{
+	if (!adv->started) {
+		adv->started = 1;
+
+		if (adv->cb && adv->cb->start) {
+			adv->cb->start(duration, err, adv->cb_data);
+		}
+
+		if (err) {
+			adv->cb = NULL;
+		} else if (IS_ENABLED(CONFIG_BT_MESH_STATISTIC)) {
+			bt_mesh_stat_succeeded_count(adv);
+		}
+	}
+}
+
+static void bt_mesh_adv_send_end(int err, struct bt_mesh_adv const *adv)
+{
+	if (adv->started && adv->cb && adv->cb->end) {
+		adv->cb->end(err, adv->cb_data);
+	}
+}
 
 static void adv_buf_destroy(struct net_buf *buf)
 {
@@ -229,6 +255,10 @@ void bt_mesh_adv_send(struct net_buf *buf, const struct bt_mesh_send_cb *cb,
 	BT_MESH_ADV(buf)->cb_data = cb_data;
 	BT_MESH_ADV(buf)->busy = 1U;
 
+	if (IS_ENABLED(CONFIG_BT_MESH_STATISTIC)) {
+		bt_mesh_stat_planned_count(BT_MESH_ADV(buf));
+	}
+
 	if (IS_ENABLED(CONFIG_BT_MESH_ADV_EXT_FRIEND_SEPARATE) &&
 	    BT_MESH_ADV(buf)->tag == BT_MESH_FRIEND_ADV) {
 		net_buf_put(&bt_mesh_friend_queue, net_buf_ref(buf));
@@ -305,6 +335,15 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, int8_t rssi,
 		case BT_DATA_MESH_BEACON:
 			bt_mesh_beacon_recv(buf);
 			break;
+		case BT_DATA_UUID16_SOME:
+			/* Fall through */
+		case BT_DATA_UUID16_ALL:
+			if (IS_ENABLED(CONFIG_BT_MESH_OD_PRIV_PROXY_SRV)) {
+				/* Restore buffer with Solicitation PDU */
+				net_buf_simple_restore(buf, &state);
+				bt_mesh_sol_recv(buf, len - 1);
+			}
+			break;
 		default:
 			break;
 		}
@@ -314,13 +353,25 @@ static void bt_mesh_scan_cb(const bt_addr_le_t *addr, int8_t rssi,
 	}
 }
 
+int bt_mesh_scan_active_set(bool active)
+{
+	if (active_scanning == active) {
+		return 0;
+	}
+
+	active_scanning = active;
+	bt_mesh_scan_disable();
+	return bt_mesh_scan_enable();
+}
+
 int bt_mesh_scan_enable(void)
 {
 	struct bt_le_scan_param scan_param = {
-			.type       = BT_HCI_LE_SCAN_PASSIVE,
-			.options    = BT_LE_SCAN_OPT_NONE,
-			.interval   = MESH_SCAN_INTERVAL,
-			.window     = MESH_SCAN_WINDOW };
+		.type = active_scanning ? BT_HCI_LE_SCAN_ACTIVE :
+					  BT_HCI_LE_SCAN_PASSIVE,
+		.interval = MESH_SCAN_INTERVAL,
+		.window = MESH_SCAN_WINDOW
+	};
 	int err;
 
 	LOG_DBG("");

@@ -80,7 +80,7 @@ Step 4: Build Hawkbit
 ``Hawkbit`` can be built for the frdm_k64f as follows:
 
 .. zephyr-app-commands::
-    :zephyr-app: samples/net/hawkbit
+    :zephyr-app: samples/subsys/mgmt/hawkbit
     :board: frdm_k64f
     :conf: "prj.conf"
     :goals: build
@@ -116,7 +116,7 @@ of your board.
 
 Once the image is flashed and booted, the sample will print the image build
 time to the console. After it connects to the internet, in hawkbit server UI,
-you should see the the frdm_k64f show up in the Targets pane. It's time to
+you should see the frdm_k64f show up in the Targets pane. It's time to
 upload a firmware binary to the server, and update it using this UI.
 
 Step 7: Building and signing the test image
@@ -286,7 +286,7 @@ Step 11: Build Hawkbit HTTPS
 ``Hawkbit https`` can be built for the frdm_k64f as follows:
 
 .. zephyr-app-commands::
-    :zephyr-app: samples/net/hawkbit
+    :zephyr-app: samples/subsys/mgmt/hawkbit
     :board: frdm_k64f
     :conf: "prj.conf overlay-tls.conf"
     :goals: build

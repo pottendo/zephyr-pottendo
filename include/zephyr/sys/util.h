@@ -25,90 +25,10 @@
 
 #include <zephyr/types.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /** @brief Number of bits that make up a type */
 #define NUM_BITS(t) (sizeof(t) * 8)
-
-#ifdef __cplusplus
-template <typename T> static inline constexpr int __z_log2_impl(T x)
-{
-	if (sizeof(x) < sizeof(unsigned int)) {
-		return ((x) < 1) * (-1) +
-		       ((x) >= 1) * (NUM_BITS(unsigned int) - __builtin_clz(x) - 1);
-	} else if (sizeof(x) <= sizeof(unsigned long long)) {
-		return ((x) < 1) * (-1) +
-		       ((x) >= 1) * (NUM_BITS(unsigned long long) - __builtin_clzll(x) - 1);
-	}
-
-	/* No declaration of __ASSERT is available here */
-	static_assert(sizeof(x) <= sizeof(unsigned long long), "unsupported type for LOG2()");
-
-	return -1;
-}
-
-template <typename T> static inline constexpr int __z_log2ceil_impl(T x)
-{
-	if (sizeof(x) < sizeof(unsigned int)) {
-		return (x > 1) * (NUM_BITS(unsigned int) - __builtin_clz(x - 1));
-	} else if (sizeof(x) <= sizeof(unsigned long long)) {
-		return (x > 1) * (NUM_BITS(unsigned long long) - __builtin_clzll(x - 1));
-	}
-
-	/* No declaration of __ASSERT is available here */
-	static_assert(sizeof(x) <= sizeof(unsigned long long), "unsupported type for LOG2CEIL()");
-
-	return -1;
-}
-
-template <typename T> static inline constexpr uint64_t __z_nhpot_impl(T x)
-{
-	int l2c = __z_log2ceil_impl(x);
-
-	return (l2c != NUM_BITS(unsigned long long)) * (1ULL << l2c);
-}
-#else
-#define __z_log2_impl(x)                                                                           \
-	(((x) < 1) * (-1) +                                                                        \
-	 ((x) >= 1) * _Generic((x), char                                                           \
-			       : (NUM_BITS(unsigned int) - __builtin_clz(x) - 1), unsigned char    \
-			       : (NUM_BITS(unsigned int) - __builtin_clz(x) - 1), short            \
-			       : (NUM_BITS(unsigned int) - __builtin_clz(x) - 1), unsigned short   \
-			       : (NUM_BITS(unsigned int) - __builtin_clz(x) - 1), int              \
-			       : (NUM_BITS(unsigned int) - __builtin_clz(x) - 1), unsigned int     \
-			       : (NUM_BITS(unsigned int) - __builtin_clz(x) - 1), long             \
-			       : (NUM_BITS(unsigned long) - __builtin_clzl(x) - 1), unsigned long  \
-			       : (NUM_BITS(unsigned long) - __builtin_clzl(x) - 1), long long      \
-			       : (NUM_BITS(unsigned long long) - __builtin_clzll(x) - 1),          \
-				 unsigned long long                                                \
-			       : (NUM_BITS(unsigned long long) - __builtin_clzll(x) - 1)))
-
-#define __z_log2ceil_impl(x)                                                                       \
-	(((x) > 1) *                                                                               \
-	 _Generic((x), char                                                                        \
-		  : (NUM_BITS(unsigned int) - __builtin_clz((x)-1)), unsigned char                 \
-		  : (NUM_BITS(unsigned int) - __builtin_clz((x)-1)), short                         \
-		  : (NUM_BITS(unsigned int) - __builtin_clz((x)-1)), unsigned short                \
-		  : (NUM_BITS(unsigned int) - __builtin_clz((x)-1)), int                           \
-		  : (NUM_BITS(unsigned int) - __builtin_clz((x)-1)), unsigned int                  \
-		  : (NUM_BITS(unsigned int) - __builtin_clz((x)-1)), long                          \
-		  : (NUM_BITS(unsigned long) - __builtin_clzl((x)-1)), unsigned long               \
-		  : (NUM_BITS(unsigned long) - __builtin_clzl((x)-1)), long long                   \
-		  : (NUM_BITS(unsigned long long) - __builtin_clzll((x)-1)), unsigned long long    \
-		  : (NUM_BITS(unsigned long long) - __builtin_clzll((x)-1))))
-
-#define __z_nhpot_impl(x)                                                              \
-	_Generic((x), char                                                             \
-					     : (1UL << LOG2CEIL(x)), unsigned char                 \
-					     : (1UL << LOG2CEIL(x)), short                         \
-					     : (1UL << LOG2CEIL(x)), unsigned short                \
-					     : (1ULL << LOG2CEIL(x)), int                          \
-					     : (1ULL << LOG2CEIL(x)), unsigned int                 \
-					     : (1ULL << LOG2CEIL(x)), long                         \
-					     : (1ULL << LOG2CEIL(x)), unsigned long                \
-					     : (1ULL << LOG2CEIL(x)), long long                    \
-					     : (1ULL << LOG2CEIL(x)), unsigned long long           \
-					     : (1ULL << LOG2CEIL(x)))
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -116,6 +36,7 @@ extern "C" {
 
 /**
  * @defgroup sys-util Utility Functions
+ * @ingroup utilities
  * @{
  */
 
@@ -305,19 +226,17 @@ extern "C" {
 	((type *)(((char *)(ptr)) - offsetof(type, field)))
 
 /**
- * @brief Value of @p x rounded up to the next multiple of @p align,
- *        which must be a power of 2.
+ * @brief Value of @p x rounded up to the next multiple of @p align.
  */
 #define ROUND_UP(x, align)                                   \
-	(((unsigned long)(x) + ((unsigned long)(align) - 1)) & \
-	 ~((unsigned long)(align) - 1))
+	((((unsigned long)(x) + ((unsigned long)(align) - 1)) / \
+	  (unsigned long)(align)) * (unsigned long)(align))
 
 /**
- * @brief Value of @p x rounded down to the previous multiple of @p
- *        align, which must be a power of 2.
+ * @brief Value of @p x rounded down to the previous multiple of @p align.
  */
 #define ROUND_DOWN(x, align)                                 \
-	((unsigned long)(x) & ~((unsigned long)(align) - 1))
+	(((unsigned long)(x) / (unsigned long)(align)) * (unsigned long)(align))
 
 /** @brief Value of @p x rounded up to the next word boundary. */
 #define WB_UP(x) ROUND_UP(x, sizeof(void *))
@@ -326,10 +245,46 @@ extern "C" {
 #define WB_DN(x) ROUND_DOWN(x, sizeof(void *))
 
 /**
- * @brief Ceiling function applied to @p numerator / @p divider as a fraction.
+ * @brief Divide and round up.
+ *
+ * Example:
+ * @code{.c}
+ * DIV_ROUND_UP(1, 2); // 1
+ * DIV_ROUND_UP(3, 2); // 2
+ * @endcode
+ *
+ * @param n Numerator.
+ * @param d Denominator.
+ *
+ * @return The result of @p n / @p d, rounded up.
  */
-#define ceiling_fraction(numerator, divider) \
-	(((numerator) + ((divider) - 1)) / (divider))
+#define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
+
+/**
+ * @brief Divide and round to the nearest integer.
+ *
+ * Example:
+ * @code{.c}
+ * DIV_ROUND_CLOSEST(5, 2); // 3
+ * DIV_ROUND_CLOSEST(5, -2); // -3
+ * DIV_ROUND_CLOSEST(5, 3); // 2
+ * @endcode
+ *
+ * @param n Numerator.
+ * @param d Denominator.
+ *
+ * @return The result of @p n / @p d, rounded to the nearest integer.
+ */
+#define DIV_ROUND_CLOSEST(n, d)	\
+	((((n) < 0) ^ ((d) < 0)) ? ((n) - ((d) / 2)) / (d) : \
+	((n) + ((d) / 2)) / (d))
+
+/**
+ * @brief Ceiling function applied to @p numerator / @p divider as a fraction.
+ * @deprecated Use DIV_ROUND_UP() instead.
+ */
+#define ceiling_fraction(numerator, divider) __DEPRECATED_MACRO \
+	DIV_ROUND_UP(numerator, divider)
 
 #ifndef MAX
 /**
@@ -592,38 +547,72 @@ char *utf8_trunc(char *utf8_str);
  */
 char *utf8_lcpy(char *dst, const char *src, size_t n);
 
+#define __z_log2d(x) (32 - __builtin_clz(x) - 1)
+#define __z_log2q(x) (64 - __builtin_clzll(x) - 1)
+#define __z_log2(x) (sizeof(__typeof__(x)) > 4 ? __z_log2q(x) : __z_log2d(x))
+
 /**
  * @brief Compute log2(x)
  *
- * @param x An unsigned integral value
+ * @note This macro expands its argument multiple times (to permit use
+ *       in constant expressions), which must not have side effects.
  *
- * @param x value to compute logarithm of (positive only)
+ * @param x An unsigned integral value to compute logarithm of (positive only)
  *
  * @return log2(x) when 1 <= x <= max(x), -1 when x < 1
  */
-#define LOG2(x) __z_log2_impl(x)
+#define LOG2(x) ((x) < 1 ? -1 : __z_log2(x))
 
 /**
  * @brief Compute ceil(log2(x))
+ *
+ * @note This macro expands its argument multiple times (to permit use
+ *       in constant expressions), which must not have side effects.
  *
  * @param x An unsigned integral value
  *
  * @return ceil(log2(x)) when 1 <= x <= max(type(x)), 0 when x < 1
  */
-#define LOG2CEIL(x) __z_log2ceil_impl(x)
+#define LOG2CEIL(x) ((x) < 1 ?  0 : __z_log2((x)-1) + 1)
 
 /**
- * @brief Compute 2^ceil(log2(x))
+ * @brief Compute next highest power of two
+ *
+ * Equivalent to 2^ceil(log2(x))
+ *
+ * @note This macro expands its argument multiple times (to permit use
+ *       in constant expressions), which must not have side effects.
  *
  * @param x An unsigned integral value
  *
  * @return 2^ceil(log2(x)) or 0 if 2^ceil(log2(x)) would saturate 64-bits
  */
-#define NHPOT(x) __z_nhpot_impl(x)
+#define NHPOT(x) ((x) < 1 ? 1 : ((x) > (1ULL<<63) ? 0 : 1ULL << LOG2CEIL(x)))
+
+/**
+ * @brief Determine if a buffer exceeds highest address
+ *
+ * This macro determines if a buffer identified by a starting address @a addr
+ * and length @a buflen spans a region of memory that goes beond the highest
+ * possible address (thereby resulting in a pointer overflow).
+ *
+ * @param addr Buffer starting address
+ * @param buflen Length of the buffer
+ *
+ * @return true if pointer overflow detected, false otherwise
+ */
+#define Z_DETECT_POINTER_OVERFLOW(addr, buflen)  \
+	(((buflen) != 0) &&                        \
+	((UINTPTR_MAX - (uintptr_t)(addr)) <= ((uintptr_t)((buflen) - 1))))
 
 #ifdef __cplusplus
 }
 #endif
+
+/* This file must be included at the end of the !_ASMLANGUAGE guard.
+ * It depends on macros defined in this file above which cannot be forward declared.
+ */
+#include <zephyr/sys/time_units.h>
 
 #endif /* !_ASMLANGUAGE */
 
@@ -645,6 +634,24 @@ char *utf8_lcpy(char *dst, const char *src, size_t n);
 #define MHZ(x) (KHZ(x) * 1000)
 
 /**
+ * @brief For the POSIX architecture add a minimal delay in a busy wait loop.
+ * For other architectures this is a no-op.
+ *
+ * In the POSIX ARCH, code takes zero simulated time to execute,
+ * so busy wait loops become infinite loops, unless we
+ * force the loop to take a bit of time.
+ * Include this macro in all busy wait/spin loops
+ * so they will also work when building for the POSIX architecture.
+ *
+ * @param t Time in microseconds we will busy wait
+ */
+#if defined(CONFIG_ARCH_POSIX)
+#define Z_SPIN_DELAY(t) k_busy_wait(t)
+#else
+#define Z_SPIN_DELAY(t)
+#endif
+
+/**
  * @brief Wait for an expression to return true with a timeout
  *
  * Spin on an expression with a timeout and optional delay between iterations
@@ -661,10 +668,11 @@ char *utf8_lcpy(char *dst, const char *src, size_t n);
  */
 #define WAIT_FOR(expr, timeout, delay_stmt)                                                        \
 	({                                                                                         \
-		uint32_t cycle_count = k_us_to_cyc_ceil32(timeout);                                \
-		uint32_t start = k_cycle_get_32();                                                 \
-		while (!(expr) && (cycle_count > (k_cycle_get_32() - start))) {                    \
+		uint32_t _wf_cycle_count = k_us_to_cyc_ceil32(timeout);                            \
+		uint32_t _wf_start = k_cycle_get_32();                                             \
+		while (!(expr) && (_wf_cycle_count > (k_cycle_get_32() - _wf_start))) {            \
 			delay_stmt;                                                                \
+			Z_SPIN_DELAY(10);                                                          \
 		}                                                                                  \
 		(expr);                                                                            \
 	})

@@ -6,6 +6,7 @@
 
 /*
  * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2023 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -291,7 +292,7 @@ static const char *iface_flags2str(struct net_if *iface)
 	static char str[sizeof("POINTOPOINT") + sizeof("PROMISC") +
 			sizeof("NO_AUTO_START") + sizeof("SUSPENDED") +
 			sizeof("MCAST_FORWARD") + sizeof("IPv4") +
-			sizeof("IPv6")];
+			sizeof("IPv6") + sizeof("NO_ND") + sizeof("NO_MLD")];
 	int pos = 0;
 
 	if (net_if_flag_is_set(iface, NET_IF_POINTOPOINT)) {
@@ -325,6 +326,16 @@ static const char *iface_flags2str(struct net_if *iface)
 	if (net_if_flag_is_set(iface, NET_IF_IPV6)) {
 		pos += snprintk(str + pos, sizeof(str) - pos,
 				"IPv6,");
+	}
+
+	if (net_if_flag_is_set(iface, NET_IF_IPV6_NO_ND)) {
+		pos += snprintk(str + pos, sizeof(str) - pos,
+				"NO_ND,");
+	}
+
+	if (net_if_flag_is_set(iface, NET_IF_IPV6_NO_MLD)) {
+		pos += snprintk(str + pos, sizeof(str) - pos,
+				"NO_MLD,");
 	}
 
 	/* get rid of last ',' character */
@@ -368,8 +379,21 @@ static void iface_cb(struct net_if *iface, void *user_data)
 		return;
 	}
 
+#if defined(CONFIG_NET_INTERFACE_NAME)
+	char ifname[CONFIG_NET_INTERFACE_NAME_LEN + 1] = { 0 };
+	int ret_name;
+
+	ret_name = net_if_get_name(iface, ifname, sizeof(ifname) - 1);
+	if (ret_name < 1 || ifname[0] == '\0') {
+		snprintk(ifname, sizeof(ifname), "?");
+	}
+
+	PR("\nInterface %s (%p) (%s) [%d]\n", ifname, iface, iface2str(iface, &extra),
+	   net_if_get_by_iface(iface));
+#else
 	PR("\nInterface %p (%s) [%d]\n", iface, iface2str(iface, &extra),
 	   net_if_get_by_iface(iface));
+#endif
 	PR("===========================%s\n", extra);
 
 	if (!net_if_is_up(iface)) {
@@ -430,12 +454,14 @@ static void iface_cb(struct net_if *iface, void *user_data)
 	}
 #endif /* CONFIG_NET_L2_VIRTUAL */
 
+	net_if_lock(iface);
 	if (net_if_get_link_addr(iface) &&
 	    net_if_get_link_addr(iface)->addr) {
 		PR("Link addr : %s\n",
 		   net_sprint_ll_addr(net_if_get_link_addr(iface)->addr,
 				      net_if_get_link_addr(iface)->len));
 	}
+	net_if_unlock(iface);
 
 	PR("MTU       : %d\n", net_if_get_mtu(iface));
 	PR("Flags     : %s\n", iface_flags2str(iface));
@@ -2962,14 +2988,14 @@ static void gptp_print_port_info(const struct shell *sh, int port)
 	struct gptp_port_bmca_data *port_bmca_data;
 	struct gptp_port_param_ds *port_param_ds;
 	struct gptp_port_states *port_state;
-	struct gptp_domain *gptp_domain;
+	struct gptp_domain *domain;
 	struct gptp_port_ds *port_ds;
 	struct net_if *iface;
 	int ret, i;
 
-	gptp_domain = gptp_get_domain();
+	domain = gptp_get_domain();
 
-	ret = gptp_get_port_data(gptp_domain,
+	ret = gptp_get_port_data(domain,
 				 port,
 				 &port_ds,
 				 &port_param_ds,
@@ -3068,10 +3094,10 @@ static void gptp_print_port_info(const struct shell *sh, int port)
 					(NSEC_PER_USEC * USEC_PER_MSEC));
 	PR("BMCA %s %s%d%s: %d\n", "default", "priority", 1,
 	   "                                        ",
-	   gptp_domain->default_ds.priority1);
+	   domain->default_ds.priority1);
 	PR("BMCA %s %s%d%s: %d\n", "default", "priority", 2,
 	   "                                        ",
-	   gptp_domain->default_ds.priority2);
+	   domain->default_ds.priority2);
 
 	PR("\nRuntime status:\n");
 	PR("Current global port state                          "
@@ -4302,7 +4328,7 @@ static enum net_verdict handle_ipv6_echo_reply(struct net_pkt *pkt,
 		snprintf(time_buf, sizeof(time_buf),
 #ifdef CONFIG_FPU
 			 "time=%.2f ms",
-			 ((uint32_t)k_cyc_to_ns_floor64(cycles) / 1000000.f)
+			 (double)((uint32_t)k_cyc_to_ns_floor64(cycles) / 1000000.f)
 #else
 			 "time=%d ms",
 			 ((uint32_t)k_cyc_to_ns_floor64(cycles) / 1000000)
@@ -4322,7 +4348,7 @@ static enum net_verdict handle_ipv6_echo_reply(struct net_pkt *pkt,
 		 ntohs(icmp_echo->sequence),
 		 ip_hdr->hop_limit,
 #ifdef CONFIG_IEEE802154
-		 net_pkt_ieee802154_rssi(pkt),
+		 net_pkt_ieee802154_rssi_dbm(pkt),
 #endif
 		 time_buf);
 
@@ -4382,7 +4408,7 @@ static enum net_verdict handle_ipv4_echo_reply(struct net_pkt *pkt,
 		snprintf(time_buf, sizeof(time_buf),
 #ifdef CONFIG_FPU
 			 "time=%.2f ms",
-			 ((uint32_t)k_cyc_to_ns_floor64(cycles) / 1000000.f)
+			 (double)((uint32_t)k_cyc_to_ns_floor64(cycles) / 1000000.f)
 #else
 			 "time=%d ms",
 			 ((uint32_t)k_cyc_to_ns_floor64(cycles) / 1000000)
@@ -4492,6 +4518,7 @@ static void ping_work(struct k_work *work)
 
 	if (ret != 0) {
 		PR_WARNING("Failed to send ping, err: %d", ret);
+		ping_done(ctx);
 		return;
 	}
 

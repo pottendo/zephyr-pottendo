@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
+zephyr_syscall_header(
+  ${ZEPHYR_BASE}/include/zephyr/sys/mutex.h
+)
+
 zephyr_sources_ifdef(CONFIG_BASE64 base64.c)
 
 zephyr_sources(
@@ -20,14 +24,6 @@ zephyr_sources(
 
 zephyr_sources_ifdef(CONFIG_ONOFF onoff.c)
 zephyr_sources_ifdef(CONFIG_NOTIFY notify.c)
-zephyr_sources_ifdef(CONFIG_CRC
-  crc32c_sw.c
-  crc32_sw.c
-  crc16_sw.c
-  crc8_sw.c
-  crc7_sw.c
-  )
-zephyr_sources_ifdef(CONFIG_CRC_SHELL crc_shell.c)
 
 zephyr_sources_ifdef(CONFIG_CBPRINTF_COMPLETE cbprintf_complete.c)
 zephyr_sources_ifdef(CONFIG_CBPRINTF_NANO cbprintf_nano.c)
@@ -64,12 +60,7 @@ zephyr_sources_ifdef(CONFIG_SYS_MEM_BLOCKS mem_blocks.c)
 
 zephyr_sources_ifdef(CONFIG_WINSTREAM winstream.c)
 
-zephyr_sources_ifdef(CONFIG_SYS_HASH_FUNC32_DJB2 hash_func32_djb2.c)
-zephyr_sources_ifdef(CONFIG_SYS_HASH_FUNC32_MURMUR3 hash_func32_murmur3.c)
-
-zephyr_sources_ifdef(CONFIG_SYS_HASH_MAP_SC hash_map_sc.c)
-zephyr_sources_ifdef(CONFIG_SYS_HASH_MAP_OA_LP hash_map_oa_lp.c)
-zephyr_sources_ifdef(CONFIG_SYS_HASH_MAP_CXX hash_map_cxx.cpp)
+zephyr_sources_ifdef(CONFIG_POWEROFF poweroff.c)
 
 zephyr_library_include_directories(
   ${ZEPHYR_BASE}/kernel/include

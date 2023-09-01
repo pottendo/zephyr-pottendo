@@ -17,7 +17,10 @@
  * @{
  */
 
+#include <stdint.h>
+
 #include <zephyr/sys/util.h>
+#include <zephyr/bluetooth/byteorder.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -172,22 +175,11 @@ struct bt_uuid_128 {
  *          @ref BT_UUID_INIT_128 or @ref BT_UUID_DECLARE_128
  */
 #define BT_UUID_128_ENCODE(w32, w1, w2, w3, w48) \
-	(((w48) >>  0) & 0xFF), \
-	(((w48) >>  8) & 0xFF), \
-	(((w48) >> 16) & 0xFF), \
-	(((w48) >> 24) & 0xFF), \
-	(((w48) >> 32) & 0xFF), \
-	(((w48) >> 40) & 0xFF), \
-	(((w3)  >>  0) & 0xFF), \
-	(((w3)  >>  8) & 0xFF), \
-	(((w2)  >>  0) & 0xFF), \
-	(((w2)  >>  8) & 0xFF), \
-	(((w1)  >>  0) & 0xFF), \
-	(((w1)  >>  8) & 0xFF), \
-	(((w32) >>  0) & 0xFF), \
-	(((w32) >>  8) & 0xFF), \
-	(((w32) >> 16) & 0xFF), \
-	(((w32) >> 24) & 0xFF)
+	BT_BYTES_LIST_LE48(w48),\
+	BT_BYTES_LIST_LE16(w3), \
+	BT_BYTES_LIST_LE16(w2), \
+	BT_BYTES_LIST_LE16(w1), \
+	BT_BYTES_LIST_LE32(w32)
 
 /** @brief Encode 16-bit UUID into array values in little-endian format.
  *
@@ -204,9 +196,7 @@ struct bt_uuid_128 {
  * @return The comma separated values for UUID 16 value that
  *         may be used directly as an argument for @ref BT_DATA_BYTES.
  */
-#define BT_UUID_16_ENCODE(w16)  \
-	(((w16) >>  0) & 0xFF), \
-	(((w16) >>  8) & 0xFF)
+#define BT_UUID_16_ENCODE(w16) BT_BYTES_LIST_LE16(w16)
 
 /** @brief Encode 32-bit UUID into array values in little-endian format.
  *
@@ -223,11 +213,7 @@ struct bt_uuid_128 {
  * @return The comma separated values for UUID 32 value that
  *         may be used directly as an argument for @ref BT_DATA_BYTES.
  */
-#define BT_UUID_32_ENCODE(w32)  \
-	(((w32) >>  0) & 0xFF), \
-	(((w32) >>  8) & 0xFF), \
-	(((w32) >> 16) & 0xFF), \
-	(((w32) >> 24) & 0xFF)
+#define BT_UUID_32_ENCODE(w32) BT_BYTES_LIST_LE32(w32)
 
 /**
  *  @brief Recommended length of user string buffer for Bluetooth UUID.
@@ -598,6 +584,10 @@ struct bt_uuid_128 {
  */
 #define BT_UUID_MESH_PROXY \
 	BT_UUID_DECLARE_16(BT_UUID_MESH_PROXY_VAL)
+/**
+ *  @brief Proxy Solicitation UUID value
+ */
+#define BT_UUID_MESH_PROXY_SOLICITATION_VAL 0x7fcb
 /**
  *  @brief Reconnection Configuration Service UUID value
  */
@@ -4687,11 +4677,11 @@ struct bt_uuid_128 {
 #define BT_UUID_TBS_FRIENDLY_NAME \
 	BT_UUID_DECLARE_16(BT_UUID_TBS_FRIENDLY_NAME_VAL)
 /**
- *  @brief Microphone Input Control Service Mute value
+ *  @brief Microphone Control Service Mute value
  */
 #define BT_UUID_MICS_MUTE_VAL 0x2bc3
 /**
- *  @brief Microphone Input Control Service Mute
+ *  @brief Microphone Control Service Mute
  */
 #define BT_UUID_MICS_MUTE \
 	BT_UUID_DECLARE_16(BT_UUID_MICS_MUTE_VAL)

@@ -14,7 +14,6 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/init.h>
-#include <zephyr/arch/arm/aarch32/cortex_m/cmsis.h>
 #include <soc/nrfx_coredep.h>
 #include <zephyr/logging/log.h>
 #include <nrf_erratas.h>
@@ -34,23 +33,10 @@
 #endif
 #include <soc_secure.h>
 
+#include <cmsis_core.h>
+
 #define PIN_XL1 0
 #define PIN_XL2 1
-
-#ifdef CONFIG_RUNTIME_NMI
-extern void z_arm_nmi_init(void);
-#define NMI_INIT() z_arm_nmi_init()
-#else
-#define NMI_INIT()
-#endif
-
-#if defined(CONFIG_SOC_NRF5340_CPUAPP)
-#include <system_nrf5340_application.h>
-#elif defined(CONFIG_SOC_NRF5340_CPUNET)
-#include <system_nrf5340_network.h>
-#else
-#error "Unknown nRF53 SoC."
-#endif
 
 #if defined(CONFIG_SOC_NRF_GPIO_FORWARDER_FOR_NRF5340)
 #define GPIOS_PSEL_BY_IDX(node_id, prop, idx) \
@@ -94,44 +80,17 @@ static void enable_ram_retention(void)
 #endif /* CONFIG_PM_S2RAM */
 
 #if defined(CONFIG_SOC_NRF53_ANOMALY_160_WORKAROUND)
-static void nrf53_anomaly_160_workaround(void)
+/* This code prevents the CPU from entering sleep again if it already
+ * entered sleep 5 times within last 200 us.
+ */
+static bool nrf53_anomaly_160_check(void)
 {
-	/* This part is supposed to be removed once the writes are available
-	 * in hal_nordic/nrfx/MDK.
-	 */
-#if defined(CONFIG_SOC_NRF5340_CPUAPP) && !defined(CONFIG_TRUSTED_EXECUTION_NONSECURE)
-	*((volatile uint32_t *)0x5000470C) = 0x7Eul;
-	*((volatile uint32_t *)0x5000493C) = 0x7Eul;
-	*((volatile uint32_t *)0x50002118) = 0x7Ful;
-	*((volatile uint32_t *)0x50039E04) = 0x0ul;
-	*((volatile uint32_t *)0x50039E08) = 0x0ul;
-	*((volatile uint32_t *)0x50101110) = 0x0ul;
-	*((volatile uint32_t *)0x50002124) = 0x0ul;
-	*((volatile uint32_t *)0x5000212C) = 0x0ul;
-	*((volatile uint32_t *)0x502012A0) = 0x0ul;
-#elif defined(CONFIG_SOC_NRF5340_CPUNET)
-	*((volatile uint32_t *)0x41002118) = 0x7Ful;
-	*((volatile uint32_t *)0x41080E04) = 0x0ul;
-	*((volatile uint32_t *)0x41080E08) = 0x0ul;
-	*((volatile uint32_t *)0x41002124) = 0x0ul;
-	*((volatile uint32_t *)0x4100212C) = 0x0ul;
-	*((volatile uint32_t *)0x41101110) = 0x0ul;
-#endif
-}
-
-bool z_arm_on_enter_cpu_idle(void)
-{
-	/* This code prevents the CPU from entering sleep again if it already
-	 * entered sleep 5 times within last 200 us.
-	 */
-
 	/* System clock cycles needed to cover 200 us window. */
 	const uint32_t window_cycles =
-		ceiling_fraction(200 * CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC,
+		DIV_ROUND_UP(200 * CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC,
 				 1000000);
 	static uint32_t timestamps[5];
 	static bool timestamps_filled;
-	static bool suppress_warning;
 	static uint8_t current;
 	uint8_t oldest = (current + 1) % ARRAY_SIZE(timestamps);
 	uint32_t now = k_cycle_get_32();
@@ -139,13 +98,8 @@ bool z_arm_on_enter_cpu_idle(void)
 	if (timestamps_filled &&
 	    /* + 1 because only fully elapsed cycles need to be counted. */
 	    (now - timestamps[oldest]) < (window_cycles + 1)) {
-		if (!suppress_warning) {
-			LOG_WRN("Anomaly 160 trigger conditions detected.");
-			suppress_warning = true;
-		}
 		return false;
 	}
-	suppress_warning = false;
 
 	/* Check if the CPU actually entered sleep since the last visit here
 	 * (WFE/WFI could return immediately if the wake-up event was already
@@ -168,16 +122,28 @@ bool z_arm_on_enter_cpu_idle(void)
 
 	return true;
 }
+
+bool z_arm_on_enter_cpu_idle(void)
+{
+	bool ok_to_sleep = nrf53_anomaly_160_check();
+
+#if (LOG_LEVEL >= LOG_LEVEL_DBG)
+	static bool suppress_message;
+
+	if (ok_to_sleep) {
+		suppress_message = false;
+	} else if (!suppress_message) {
+		LOG_DBG("Anomaly 160 trigger conditions detected.");
+		suppress_message = true;
+	}
+#endif
+
+	return ok_to_sleep;
+}
 #endif /* CONFIG_SOC_NRF53_ANOMALY_160_WORKAROUND */
 
-static int nordicsemi_nrf53_init(const struct device *arg)
+static int nordicsemi_nrf53_init(void)
 {
-	uint32_t key;
-
-	ARG_UNUSED(arg);
-
-	key = irq_lock();
-
 #if defined(CONFIG_SOC_NRF5340_CPUAPP) && defined(CONFIG_NRF_ENABLE_CACHE)
 #if !defined(CONFIG_BUILD_WITH_TFM)
 	/* Enable the instruction & data cache.
@@ -242,11 +208,6 @@ static int nordicsemi_nrf53_init(const struct device *arg)
 	nrf_oscillators_hfxo_cap_set(NRF_OSCILLATORS, false, 0);
 #endif
 
-#if defined(CONFIG_SOC_NRF53_ANOMALY_160_WORKAROUND)
-	/* This needs to be done before DC/DC operation is enabled. */
-	nrf53_anomaly_160_workaround();
-#endif
-
 #if defined(CONFIG_SOC_DCDC_NRF53X_APP)
 	nrf_regulators_dcdcen_set(NRF_REGULATORS, true);
 #endif
@@ -271,13 +232,6 @@ static int nordicsemi_nrf53_init(const struct device *arg)
 #if defined(CONFIG_PM_S2RAM)
 	enable_ram_retention();
 #endif /* CONFIG_PM_S2RAM */
-
-	/* Install default handler that simply resets the CPU
-	 * if configured in the kernel, NOP otherwise
-	 */
-	NMI_INIT();
-
-	irq_unlock(key);
 
 	return 0;
 }

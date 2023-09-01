@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018 Linaro Limited.
  * Copyright (c) 2018 Nordic Semiconductor ASA.
- * Copyright (c) 2021 Arm Limited (or its affiliates). All rights reserved.
+ * Copyright (c) 2021-2023 Arm Limited (or its affiliates). All rights reserved.
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -132,7 +132,7 @@
  * recommended to use these helper defines only for configuring
  * fixed MPU regions at build-time.
  */
-#define REGION_DEVICE_ATTR					      \
+#define REGION_IO_ATTR						      \
 	{							      \
 		/* AP, XN, SH */				      \
 		.rbar = NOT_EXEC | P_RW_U_NA_Msk | NON_SHAREABLE_Msk, \
@@ -146,6 +146,14 @@
 		.rbar = NOT_EXEC | P_RW_U_NA_Msk | NON_SHAREABLE_Msk, \
 		/* Cache-ability */				      \
 		.mair_idx = MPU_MAIR_INDEX_SRAM,		      \
+	}
+
+#define REGION_RAM_NOCACHE_ATTR					      \
+	{							      \
+		/* AP, XN, SH */				      \
+		.rbar = NOT_EXEC | P_RW_U_NA_Msk | NON_SHAREABLE_Msk, \
+		/* Cache-ability */				      \
+		.mair_idx = MPU_MAIR_INDEX_SRAM_NOCACHE,	      \
 	}
 
 #define REGION_RAM_TEXT_ATTR				   \
@@ -219,6 +227,14 @@ struct arm_mpu_config {
 		.attr = _attr,			      \
 	}
 
+#define MPU_REGION_ENTRY_FROM_DTS(_name, _base, _size, _attr) \
+	{						      \
+		.name = _name,				      \
+		.base = _base,				      \
+		.limit = _base + _size,			      \
+		.attr = _attr,				      \
+	}
+
 #define K_MEM_PARTITION_P_RW_U_RW ((k_mem_partition_attr_t) \
 	{(P_RW_U_RW_Msk), MPU_MAIR_INDEX_SRAM})
 #define K_MEM_PARTITION_P_RW_U_NA ((k_mem_partition_attr_t) \
@@ -239,6 +255,16 @@ typedef struct arm_mpu_region_attr k_mem_partition_attr_t;
  * not kept here.
  */
 extern const struct arm_mpu_config mpu_config;
+
+struct dynamic_region_info {
+	int index;
+	struct arm_mpu_region region_conf;
+};
+
+#define ARM64_MPU_MAX_DYNAMIC_REGIONS						\
+	1 + /* data section */							\
+	(CONFIG_MAX_DOMAIN_PARTITIONS + 2) +					\
+	2   /* user stack */
 
 #endif	/* _ASMLANGUAGE */
 

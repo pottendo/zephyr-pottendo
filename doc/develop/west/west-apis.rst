@@ -34,7 +34,7 @@ provided.
 WestCommand
 ===========
 
-.. py:class:: west.commands.WestCommand
+.. autoclass:: west.commands.WestCommand
 
    Instance attributes:
 
@@ -223,7 +223,7 @@ Since west v0.13, the recommended class for reading this is
 :py:class:`west.configuration.Configuration`.
 
 Note that if you are writing a :ref:`west extension <west-extensions>`, you can
-access the current ``Configuration`` object as ``self.configuration``. See
+access the current ``Configuration`` object as ``self.config``. See
 :py:class:`west.commands.WestCommand`.
 
 Configuration API
@@ -384,6 +384,9 @@ Manifest and sub-objects
    .. versionadded:: 0.7.0
    .. automethod:: is_active
    .. versionadded:: 0.9.0
+   .. versionchanged:: 1.1.0
+      This respects the ``manifest.project-filter`` configuration
+      option. See :ref:`west-config-index`.
 
 .. autoclass:: west.manifest.ImportFlag
    :members:
@@ -484,10 +487,10 @@ Manifest and sub-objects
 Exceptions
 ==========
 
-.. autoclass:: west.manifest.MalformedManifest
+.. autoclass:: west.configuration.MalformedConfig
    :show-inheritance:
 
-.. autoclass:: west.manifest.MalformedConfig
+.. autoclass:: west.manifest.MalformedManifest
    :show-inheritance:
 
 .. autoclass:: west.manifest.ManifestVersionError

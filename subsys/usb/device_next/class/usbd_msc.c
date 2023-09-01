@@ -11,7 +11,7 @@
 #include <zephyr/usb/usbd.h>
 #include <zephyr/usb/usb_ch9.h>
 #include <zephyr/usb/class/usbd_msc.h>
-
+#include <zephyr/sys/iterable_sections.h>
 #include <zephyr/drivers/usb/udc.h>
 
 #include "usbd_msc_scsi.h"
@@ -103,16 +103,17 @@ enum {
 	MSC_BULK_OUT_QUEUED,
 	MSC_BULK_IN_QUEUED,
 	MSC_BULK_IN_WEDGED,
+	MSC_BULK_OUT_WEDGED,
 };
 
 enum msc_bot_state {
 	MSC_BBB_EXPECT_CBW,
-	MSC_BBB_DISCARD_OUT_DATA,
 	MSC_BBB_PROCESS_CBW,
 	MSC_BBB_PROCESS_READ,
 	MSC_BBB_PROCESS_WRITE,
 	MSC_BBB_SEND_CSW,
 	MSC_BBB_WAIT_FOR_CSW_SENT,
+	MSC_BBB_WAIT_FOR_RESET_RECOVERY,
 };
 
 struct msc_bot_ctx {
@@ -216,6 +217,7 @@ static void msc_reset_handler(struct usbd_class_node *node)
 	}
 
 	atomic_clear_bit(&ctx->bits, MSC_BULK_IN_WEDGED);
+	atomic_clear_bit(&ctx->bits, MSC_BULK_OUT_WEDGED);
 }
 
 static bool is_cbw_meaningful(struct msc_bot_ctx *const ctx)
@@ -302,8 +304,10 @@ static void msc_process_cbw(struct msc_bot_ctx *ctx)
 	struct scsi_ctx *lun = &ctx->luns[ctx->cbw.bCBWLUN];
 	bool cmd_is_data_read, cmd_is_data_write;
 	size_t data_len;
+	int cb_len;
 
-	data_len = scsi_cmd(lun, ctx->cbw.CBWCB, ctx->cbw.bCBWCBLength, ctx->scsi_buf);
+	cb_len = scsi_usb_boot_cmd_len(ctx->cbw.CBWCB, ctx->cbw.bCBWCBLength);
+	data_len = scsi_cmd(lun, ctx->cbw.CBWCB, cb_len, ctx->scsi_buf);
 	ctx->scsi_bytes = data_len;
 	ctx->scsi_offset = 0;
 	cmd_is_data_read = scsi_cmd_is_data_read(lun);
@@ -480,11 +484,11 @@ static void msc_handle_bulk_out(struct msc_bot_ctx *ctx,
 			/* 6.6.1 CBW Not Valid */
 			LOG_INF("Invalid CBW");
 			atomic_set_bit(&ctx->bits, MSC_BULK_IN_WEDGED);
+			atomic_set_bit(&ctx->bits, MSC_BULK_OUT_WEDGED);
 			msc_stall_bulk_in_ep(ctx->class_node);
-			ctx->state = MSC_BBB_DISCARD_OUT_DATA;
+			msc_stall_bulk_out_ep(ctx->class_node);
+			ctx->state = MSC_BBB_WAIT_FOR_RESET_RECOVERY;
 		}
-	} else if (ctx->state == MSC_BBB_DISCARD_OUT_DATA) {
-		/* Keep discarding data until Reset Recovery */
 	} else if (ctx->state == MSC_BBB_PROCESS_WRITE) {
 		msc_process_write(ctx, buf, len);
 	}
@@ -609,7 +613,6 @@ static void usbd_msc_thread(void *arg1, void *arg2, void *arg3)
 
 		switch (ctx->state) {
 		case MSC_BBB_EXPECT_CBW:
-		case MSC_BBB_DISCARD_OUT_DATA:
 		case MSC_BBB_PROCESS_WRITE:
 			/* Ensure we can accept next OUT packet */
 			msc_queue_bulk_out_ep(evt.node);
@@ -659,6 +662,10 @@ static void msc_bot_feature_halt(struct usbd_class_node *const node,
 	    atomic_test_bit(&ctx->bits, MSC_BULK_IN_WEDGED)) {
 		/* Endpoint shall remain halted until Reset Recovery */
 		usbd_ep_set_halt(node->data->uds_ctx, ep);
+	} else if (ep == msc_get_bulk_out(node) && !halted &&
+	    atomic_test_bit(&ctx->bits, MSC_BULK_OUT_WEDGED)) {
+		/* Endpoint shall remain halted until Reset Recovery */
+		usbd_ep_set_halt(node->data->uds_ctx, ep);
 	}
 }
 
@@ -667,8 +674,8 @@ static int msc_bot_control_to_dev(struct usbd_class_node *const node,
 				  const struct usb_setup_packet *const setup,
 				  const struct net_buf *const buf)
 {
-	if ((setup->bRequest == BULK_ONLY_MASS_STORAGE_RESET) &&
-	    (setup->wValue == 0)) {
+	if (setup->bRequest == BULK_ONLY_MASS_STORAGE_RESET &&
+	    setup->wValue == 0 && setup->wLength == 0) {
 		msc_bot_schedule_reset(node);
 	} else {
 		errno = -ENOTSUP;
@@ -685,7 +692,8 @@ static int msc_bot_control_to_host(struct usbd_class_node *const node,
 	struct msc_bot_ctx *ctx = node->data->priv;
 	uint8_t max_lun;
 
-	if ((setup->bRequest == GET_MAX_LUN) && (setup->wValue == 0)) {
+	if (setup->bRequest == GET_MAX_LUN &&
+	    setup->wValue == 0 && setup->wLength >= 1) {
 		/* If there is no LUN registered we cannot really do anything,
 		 * because STALLing this request means that device does not
 		 * support multiple LUNs and host should only address LUN 0.
