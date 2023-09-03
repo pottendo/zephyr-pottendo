@@ -37,7 +37,7 @@ oc_coproc::loop(void)
             leave = oc_crs[ctr_reg->cmd]->run();
         ctr_reg->cmd = CNOP;
         ctr_reg->res = 1;
-        usleep(1 * 1000);
+        usleep(500 * 1000);
         CACHE_FLUSH();
     }
     std::cout << __FUNCTION__ << " done.\n";
@@ -91,7 +91,7 @@ static void _line(c64 &c64i, int X1, int Y1, int X2, int Y2, uint8_t c)
             c64i.setpx(x, y, c);
         }
     }
-    else if (dx<dy)
+    else if (dx < dy)
     {
         // initial value of decision parameter d
         int d = dx - (dy / 2);
@@ -118,20 +118,31 @@ static void _line(c64 &c64i, int X1, int Y1, int X2, int Y2, uint8_t c)
     }
 }
 
-const uint8_t bitm[] = {
-    0b00000000,
-    0b00000001,
-    0b00000011,
-    0b00000111,
-    0b00001111,
-    0b00011111,
-    0b00111111,
+const uint8_t bitml[] = {
+    0b11111111,
     0b01111111,
+    0b00111111,
+    0b00011111,
+    0b00001111,
+    0b00000111,
+    0b00000011,
+    0b00000001
+};
+
+const uint8_t bitmr[] = {
+    0b10000000,
+    0b11000000,
+    0b11100000,
+    0b11110000,
+    0b11111000,
+    0b11111100,
+    0b11111110,
     0b11111111
 };
 
 static void _fhline(c64 &c64i, int X1, int Y1, int X2, int Y2, uint8_t c)
 {
+    //printf("%s: (%d,%d)->(%d,%d), col = %d\n", __FUNCTION__, X1, Y1, X2, Y2, c);
     if (X1 < 0) X1 = 0;
     if (X2 < 0) X2 = 0;
     if (Y1 < 0) Y1 = 0;
@@ -140,14 +151,15 @@ static void _fhline(c64 &c64i, int X1, int Y1, int X2, int Y2, uint8_t c)
     if (X2 >= IMG_W / PIXELW) X2 = IMG_W / PIXELW - 1;
     if (Y1 >= IMG_H) Y1 = IMG_H - 1;
     if (Y2 >= IMG_H) Y2 = IMG_H - 1;
-    // calculate dx & dy
     if (X2 < X1) std::swap(X1, X2);
     if (Y2 < Y1) std::swap(Y1, Y2);
+    //printf("%s: (%d,%d)->(%d,%d), col = %d\n", __FUNCTION__, X1, Y1, X2, Y2, c);
 
     const uint32_t lineb = IMG_W / 8 * 8; // line 8 bytes per 8x8 pixel
     const int bpb = 8 / PIXELW;
     int x, it, cidx;
     int boffs = (X1 % bpb);
+    int boffsx2 = (X2 % bpb);
     unsigned char *cv = c64i.get_canvas();
     unsigned char bcol = (c & 0x3);
     for (int i = 1; i < (8 / PIXELW); i++)
@@ -156,16 +168,26 @@ static void _fhline(c64 &c64i, int X1, int Y1, int X2, int Y2, uint8_t c)
     }
     cidx = (Y1 / 8) * lineb + (Y1 % 8) + (X1 / (8 / PIXELW)) * 8;
 
-    //printf("%s: c=%d, X1=%d, X2=%d(%d offs), boffs=%d, bbp=%d, cidx=0x%04x\n", __FUNCTION__, bcol, X1, X2, boffs, (X2%8), bpb, cidx);
-    if (boffs > 0)
+    //printf("%s: c=%d, X1=%d, X2=%d(%d offs), Y1=%d, boffs=%d, bpb=%d, cidx=0x%04x\n", __FUNCTION__, bcol, X1, X2, (X2%8), Y1, boffs, bpb, cidx);
+    x = X1 + (bpb - boffs); // align with next byte
+    if (x <= X2)
     {
-        cv[cidx] &= ~(bitm[bpb - boffs]);
-        cv[cidx] |= (bitm[bpb - boffs] & bcol);
-        x = X1 + (bpb - boffs); // align with next byte
+        cv[cidx] &= ~bitml[boffs];
+        cv[cidx] |= (bitml[boffs] & bcol);
         cidx += 8;
     }
     else
-        x = X1;
+    { 
+        uint8_t mr=0, ml=0x80, m;
+        // just within a byte, fixme MC
+        for (int i = boffsx2; i < bpb; i++)
+            mr = (ml << 1) | 1;
+        for (int i = 0; i < boffs; i++)
+            ml = (ml >> 1) | 0x80;
+        m = mr | ml;
+        cv[cidx] &= ~m;
+        cv[cidx] |= (m & bcol);
+    }
 
     for (it = x; (it <= (X2 - bpb)) && (it < IMG_W / PIXELW); it += 8)
     {
@@ -174,12 +196,8 @@ static void _fhline(c64 &c64i, int X1, int Y1, int X2, int Y2, uint8_t c)
     }
     if (it < IMG_W / PIXELW)
     {
-        int boffsx2 = (X2 % bpb);
-        if (boffsx2 > 0) 
-        {
-            cv[cidx] &= bitm[bpb - boffsx2];
-            cv[cidx] |= ~(bitm[bpb - boffsx2]) & bcol;
-        }
+        cv[cidx] &= ~bitmr[boffsx2];
+        cv[cidx] |= (bitmr[boffsx2] & bcol);
     }
 }
 
@@ -207,7 +225,6 @@ int CoRoutine<cr_circle_t>::_run(void)
     bool fill = (p->c & 0x80);
     p->c &= 0xf;    // clear fill flag
     if (fill) memset(filled, 0, IMG_H * sizeof(int));
-
     // Printing the initial point on the axes
     c64i.setpx(r + x_centre, y_centre, p->c);
 
@@ -218,7 +235,8 @@ int CoRoutine<cr_circle_t>::_run(void)
         if (fill)
         {
             _fhline(c64i, -r + x_centre + 1, y_centre, r + x_centre, y_centre, p->c);
-            if (y_centre < IMG_H) filled[y_centre]++;
+            if ((y_centre < IMG_H) && (y_centre >= 0)) 
+                filled[y_centre]++;
         }
         else
         {
@@ -253,17 +271,17 @@ int CoRoutine<cr_circle_t>::_run(void)
         {
             int yh1 = y + y_centre;
             int yh2 = -y + y_centre;
-            if (!filled[yh1] && (yh1 < IMG_H))
+            if ((yh1 < IMG_H) && (yh1 >= 0) && !filled[yh1])
             {
                 _fhline(c64i, -x + x_centre, yh1, x + x_centre, yh1, p->c);
                 filled[yh1]++;
             }
-            if (!filled[yh2] && (yh2 < IMG_H))
+            if ((yh2 < IMG_H) && (yh2 >= 0) && !filled[yh2])
             {
                 _fhline(c64i, -x + x_centre, yh2, x + x_centre, yh2, p->c);
                 filled[yh2]++;
             }
-        }    
+       }    
         else
         {
             c64i.setpx(x + x_centre, y + y_centre, p->c);
@@ -275,22 +293,31 @@ int CoRoutine<cr_circle_t>::_run(void)
         // the perimeter points have already been printed
         if (x != y)
         {
-            c64i.setpx(y + x_centre, x + y_centre, p->c);
-            c64i.setpx(-y + x_centre, x + y_centre, p->c);
-            c64i.setpx(y + x_centre, -x + y_centre, p->c);
-            c64i.setpx(-y + x_centre, -x + y_centre, p->c);
             if (fill)
             {
                 int yh1 = x + y_centre;
                 int yh2 = -x + y_centre;
-                if (!filled[yh1])
+                if ((yh1 < IMG_H) && (yh1 >= 0) && !filled[yh1])
                 {
                     _fhline(c64i, -y + x_centre, yh1, y + x_centre, yh1, p->c);
-                    _fhline(c64i, -y + x_centre, yh2, y + x_centre, yh2, p->c);
-                    filled[yh1]++; filled[yh2]++;
+                    filled[yh1]++;
                 }
+                if ((yh2 < IMG_H) && (yh2 >= 0) && !filled[yh2]) 
+                {
+                    _fhline(c64i, -y + x_centre, yh2, y + x_centre, yh2, p->c);
+                    filled[yh2]++;
+                }
+
             }    
+            else
+            {
+                c64i.setpx(y + x_centre, x + y_centre, p->c);
+                c64i.setpx(-y + x_centre, x + y_centre, p->c);
+                c64i.setpx(y + x_centre, -x + y_centre, p->c);
+                c64i.setpx(-y + x_centre, -x + y_centre, p->c);
+            }
         }
     }
+
     return 0;
 }
