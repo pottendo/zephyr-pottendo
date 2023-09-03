@@ -55,6 +55,7 @@ class c64
     void screencols(uint8_t bo, uint8_t bg) { vic[VIC::BoC] = bo; vic[VIC::BgC] = bg; }
     inline unsigned char *get_coprocreq(void) { return coproc_reg; };
     void setpx(uint16_t x, uint8_t y, uint8_t c);
+    inline unsigned char *get_canvas(void) { return canvas; }
 };
 
 #endif /* __c64_linux_h__ */

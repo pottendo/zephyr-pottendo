@@ -74,7 +74,7 @@ main(void)
     std::cout << "GFX CoProc...\n";
 #ifdef C64    
     std::cout << "C64 memory @0x" << std::hex << int(c64i.get_mem()) << std::dec << '\n';
-    c64i.screencols(VIC::BLACK, VIC::BLUE);
+    c64i.screencols(VIC::GREY, VIC::BLUE);
     memset(cv, 0, 8000);
     memset(&cv[0x3c00], 0x10, 0x3f8);
     memset(&c64i.get_mem()[0xd800], 0, 1000);  

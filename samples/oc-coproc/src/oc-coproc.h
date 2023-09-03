@@ -14,10 +14,29 @@ public:
         cout << "CoRoutine: " << *this << '\n';
     }
     ~CoRoutine_t() = default;
+    /* class private functinos */
+    inline void timespec_diff(struct timespec *a, struct timespec *b, struct timespec *result)
+    {
+    	result->tv_sec  = a->tv_sec  - b->tv_sec;
+    	result->tv_nsec = a->tv_nsec - b->tv_nsec;
+    	if (result->tv_nsec < 0)
+    	{
+	        --result->tv_sec;
+	        result->tv_nsec += 1000000000L;
+	    }
+    }
 
-    int run(void) { 
-        cout << *this << "'s run function called\n";
-        return _run();
+    inline int run(void) { 
+        //cout << *this << "'s run function called\n";
+        struct timespec tstart, tend, dt;
+        int res;
+
+        clock_gettime(CLOCK_REALTIME, &tstart);
+        res = _run();
+        clock_gettime(CLOCK_REALTIME, &tend);
+        timespec_diff(&tend, &tstart, &dt);
+        printf("coroutine done in: %lld.%03lds\n", dt.tv_sec, dt.tv_nsec / 1000000L);
+        return res;
     }
 
     virtual int _run(void) = 0;
@@ -28,6 +47,7 @@ template <typename Paramstruct>
 class CoRoutine : public CoRoutine_t {
     Paramstruct *p;
     c64 &c64i;
+
 public:
     CoRoutine(string n, c64 &_c64) : CoRoutine_t(n), c64i(_c64) { p = (Paramstruct *)_c64.get_coprocreq(); cout << "param = " << p << '\n';};
     ~CoRoutine() = default;
@@ -64,7 +84,7 @@ class oc_coproc {
     vector<CoRoutine_t *> oc_crs;
 public:
     oc_coproc(c64 &_c64, string n = "Orangecart");
-    ~oc_coproc() = default;
+    ~oc_coproc() = default; // fixme, delete needed
 
     int loop(void);
 };
