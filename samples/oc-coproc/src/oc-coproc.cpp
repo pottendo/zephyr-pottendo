@@ -12,12 +12,18 @@
 #define CACHE_FLUSH()
 #endif
 
+static uint8_t pmask;
+
 oc_coproc::oc_coproc(c64 &_c64, string n) : c64i(_c64), name(n)
 {
     oc_crs.push_back(new CoRoutine<char *>{"nop", _c64});
     oc_crs[CLINE] = new CoRoutine<cr_line_t>{"line", _c64};
     oc_crs[CCIRCLE] = new CoRoutine<cr_circle_t>{"circle", _c64};
     oc_crs[CEXIT] = new CoRoutine<char *>{"exit", _c64};
+
+    pmask = 1;
+    for (int i = 1; i < PIXELW; i++)
+        pmask |= ((pmask << 1) | 1);
 }
 
 int
@@ -161,10 +167,10 @@ static void _fhline(c64 &c64i, int X1, int Y1, int X2, int Y2, uint8_t c)
     int boffs = (X1 % bpb);
     int boffsx2 = (X2 % bpb);
     unsigned char *cv = c64i.get_canvas();
-    unsigned char bcol = (c & 0x3);
+    unsigned char bcol = (c & pmask);
     for (int i = 1; i < (8 / PIXELW); i++)
     {
-        bcol = (bcol << PIXELW) | (c & 0x3);
+        bcol = (bcol << PIXELW) | (c & pmask);
     }
     cidx = (Y1 / 8) * lineb + (Y1 % 8) + (X1 / (8 / PIXELW)) * 8;
 
@@ -178,15 +184,17 @@ static void _fhline(c64 &c64i, int X1, int Y1, int X2, int Y2, uint8_t c)
     }
     else
     { 
-        uint8_t mr=0, ml=0x80, m;
-        // just within a byte, fixme MC
-        for (int i = boffsx2; i < bpb; i++)
-            mr = (ml << 1) | 1;
-        for (int i = 0; i < boffs; i++)
-            ml = (ml >> 1) | 0x80;
-        m = mr | ml;
-        cv[cidx] &= ~m;
-        cv[cidx] |= (m & bcol);
+        // just within a byte
+        //printf("boffs = %d -> boffsx2 = %d\n", boffs, boffsx2);
+        uint8_t m;
+        for (int i = boffs; i <= boffsx2; i++)
+        {
+            m = (pmask << ((bpb - i - 1) * PIXELW));
+            //printf("pmask = %d, bcol = %d, mask = 0x%02x\n", pmask, bcol, m);
+            cv[cidx] &= ~m;
+            cv[cidx] |= (bcol & m);
+        }
+        return;
     }
 
     for (it = x; (it <= (X2 - bpb)) && (it < IMG_W / PIXELW); it += 8)
@@ -205,7 +213,7 @@ template<>
 int CoRoutine<cr_line_t>::_run(void)
 {
     //printf("(%d,%d) -> (%d, %d), col = %d\n", p->x1, p->y1, p->x2, p->y2, p->c);
-    _line(c64i, p->x1, p->y1, p->x2, p->y2, p->c);
+    _fhline(c64i, p->x1, p->y1, p->x2, p->y2, p->c);
     
     return 0;
 }
@@ -244,6 +252,8 @@ int CoRoutine<cr_circle_t>::_run(void)
             c64i.setpx(x_centre, -r + y_centre, p->c);
         }
     }
+    else
+        return 0;
      
     // Initialising the value of P
     int P = 1 - r;
