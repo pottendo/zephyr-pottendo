@@ -5,6 +5,7 @@
 #include "c64-lib.h"
 #include "oc-coproc.h"
 
+//c64 c64i(0x04d0, 0x4000);
 c64 c64i(0xc000, 0x4000);
 oc_coproc cp(c64i);
 
@@ -71,6 +72,10 @@ void demo(void)
 int
 main(void)
 {
+#ifdef ZEPHYR
+    volatile char *led = (char *)0xf0002000;
+    *led = ((*led) + 1);
+#endif
     std::cout << "GFX CoProc...\n";
 #ifdef C64    
     std::cout << "C64 memory @0x" << std::hex << int(c64i.get_mem()) << std::dec << '\n';

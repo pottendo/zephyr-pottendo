@@ -8,6 +8,7 @@ using namespace std;
 class CoRoutine_t {
 protected:    
     string name;
+    bool show = false;
 public:
     CoRoutine_t(string n) : name(n)
     {
@@ -35,7 +36,8 @@ public:
         res = _run();
         clock_gettime(CLOCK_REALTIME, &tend);
         timespec_diff(&tend, &tstart, &dt);
-        printf("coroutine done in: %lld.%03lds\n", dt.tv_sec, dt.tv_nsec / 1000000L);
+        if (show)
+            printf("coroutine '%s' done in: %lld.%03lds\n", name.c_str(), dt.tv_sec, dt.tv_nsec / 1000000L);
         return res;
     }
 
