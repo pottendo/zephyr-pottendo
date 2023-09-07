@@ -46,16 +46,25 @@ class c64
     unsigned char *map_memory(off_t addr, size_t len);
     unsigned char *mem, *vic, *cia1, *cia2, *sid, *oc_ctrl, *coproc_reg, *canvas;
     uint8_t _mask = 0;
+    enum { c64Fill = 0b10000000, c64Invert = 0b01000000}; // drawing opions as coded in color high-nibble
+    bool invert = false;
+
+    int fvline(int X1, int Y1, int X2, int Y2, uint8_t c);
+    int fhline(int X1, int Y1, int X2, int Y2, uint8_t c);
+
   public:
     c64(uint16_t cr, uint16_t c);
     ~c64();
 
-    unsigned char *get_mem(void) { return mem; }
+    inline unsigned char *get_mem(void) { return mem; }
+    inline unsigned char *get_canvas(void) { return canvas; }
+    inline unsigned char *get_coprocreq(void) { return coproc_reg; };
     void gfx(c64_consts bank, c64_consts mode, uint8_t vram);
     void screencols(uint8_t bo, uint8_t bg) { vic[VIC::BoC] = bo; vic[VIC::BgC] = bg; }
-    inline unsigned char *get_coprocreq(void) { return coproc_reg; };
-    void setpx(uint16_t x, uint8_t y, uint8_t c);
-    inline unsigned char *get_canvas(void) { return canvas; }
+    void setpx(int x, int y, uint8_t c);
+    inline void setinvert(bool i) { invert = i; }
+    int circle(int X1, int Y1, int r, uint8_t c);
+    int line(int X1, int Y1, int X2, int Y2, uint8_t c);
 };
 
 #endif /* __c64_linux_h__ */

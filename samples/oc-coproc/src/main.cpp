@@ -5,8 +5,8 @@
 #include "c64-lib.h"
 #include "oc-coproc.h"
 
-//c64 c64i(0x04d0, 0x4000);
-c64 c64i(0xc000, 0x4000);
+c64 c64i(0xe0, 0x4000);
+//c64 c64i(0xc000, 0x4000);
 oc_coproc cp(c64i);
 
 char *cv = (char *)&c64i.get_mem()[0x4000];

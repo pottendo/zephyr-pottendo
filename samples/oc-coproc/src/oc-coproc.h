@@ -1,3 +1,4 @@
+#include <time.h>
 #include <string>
 #include <iostream>
 #include <vector>
@@ -79,8 +80,16 @@ typedef struct __attribute__((packed)) cr_circle {
     uint16_t r;
 } cr_circle_t;
 
+typedef struct __attribute__((packed)) cr_circle_el {
+    coroutine_t reg;
+    uint8_t c;
+    uint16_t x1;
+    uint16_t y1;
+    uint16_t r;
+} cr_circle_el_t;
+
 class oc_coproc {
-    enum { CNOP = 0, CLINE = 1, CCIRCLE = 2, CEXIT = 0xff };
+    enum { CNOP = 0, CLINE = 1, CCIRCLE = 2, CCIRCLE_EL = 3, CEXIT = 0xff };
     c64 &c64i;
     string name;
     vector<CoRoutine_t *> oc_crs;
