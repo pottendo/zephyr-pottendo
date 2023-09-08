@@ -88,8 +88,17 @@ typedef struct __attribute__((packed)) cr_circle_el {
     uint16_t r;
 } cr_circle_el_t;
 
+typedef struct __attribute__((packed)) cr_cfg {
+    coroutine_t reg;
+    uint16_t canvas;
+    uint16_t x1;
+    uint8_t y1;
+    uint16_t x2;
+    uint8_t y2;
+} cr_cfg_t;
+
 class oc_coproc {
-    enum { CNOP = 0, CLINE = 1, CCIRCLE = 2, CCIRCLE_EL = 3, CEXIT = 0xff };
+    enum { CSUCC = 0, CNOP = 0, CLINE = 1, CCIRCLE = 2, CCIRCLE_EL = 3, CCFG = 4, CEXIT = 0xff };
     c64 &c64i;
     string name;
     vector<CoRoutine_t *> oc_crs;

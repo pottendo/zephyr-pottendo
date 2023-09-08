@@ -32,6 +32,8 @@ c64::c64(uint16_t cr, uint16_t c)
         oc_ctrl = &mem[0xdf00];
         coproc_reg = &mem[cr];
         canvas = &mem[c];
+        vp.x1 = 0; vp.y2 = 0;
+        vp.x2 = IMG_W / PIXELW; vp.y2 = IMG_H;
     }
     _mask = 1;
     for (int i = 1; i < PIXELW; i++)
@@ -114,7 +116,10 @@ void c64::setpx(int x, int y, uint8_t c)
         (x >= (IMG_W / PIXELW)) ||
         (y >= IMG_H))
         return;
-    
+    if ((x < vp.x1) || (x >= vp.x2))
+        return;
+    if ((y < vp.y1) || (y >= vp.y2))
+        return;
     uint32_t h = x % (8 / PIXELW);
     uint32_t shift = (8 / PIXELW - 1) - h;
     uint32_t val = (c << (shift * PIXELW));

@@ -48,6 +48,7 @@ class c64
     uint8_t _mask = 0;
     enum { c64Fill = 0b10000000, c64Invert = 0b01000000}; // drawing opions as coded in color high-nibble
     bool invert = false;
+    struct { int x1; int y1; int x2; int y2; } vp;
 
     int fvline(int X1, int Y1, int X2, int Y2, uint8_t c);
     int fhline(int X1, int Y1, int X2, int Y2, uint8_t c);
@@ -58,7 +59,9 @@ class c64
 
     inline unsigned char *get_mem(void) { return mem; }
     inline unsigned char *get_canvas(void) { return canvas; }
+    inline void set_canvas(uint16_t c) { canvas = &mem[c]; }
     inline unsigned char *get_coprocreq(void) { return coproc_reg; };
+    inline void set_viewport(int x1, int y1, int x2, int y2) { vp.x1 = x1; vp.y1 = y1; vp.x2 = x2; vp.y2 = y2; }
     void gfx(c64_consts bank, c64_consts mode, uint8_t vram);
     void screencols(uint8_t bo, uint8_t bg) { vic[VIC::BoC] = bo; vic[VIC::BgC] = bg; }
     void setpx(int x, int y, uint8_t c);

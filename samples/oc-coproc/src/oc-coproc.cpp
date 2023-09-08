@@ -13,17 +13,21 @@
 
 oc_coproc::oc_coproc(c64 &_c64, string n) : c64i(_c64), name(n)
 {
-    oc_crs.push_back(new CoRoutine<char *>{"nop", _c64});
+    oc_crs = vector<CoRoutine_t *>(0x100, nullptr);
+    oc_crs[CNOP] = new CoRoutine<char *>{"nop", _c64};
     oc_crs[CLINE] = new CoRoutine<cr_line_t>{"line", _c64};
     oc_crs[CCIRCLE] = new CoRoutine<cr_circle_t>{"circle", _c64};
     oc_crs[CCIRCLE_EL] = new CoRoutine<cr_circle_el_t>{"circle_el", _c64};
+    oc_crs[CCFG] = new CoRoutine<cr_cfg_t>{"config", _c64};
     oc_crs[CEXIT] = new CoRoutine<char *>{"exit", _c64};
+    cout << "size allocated: " << oc_crs.size() << " [6] = '" << oc_crs[6] << "'\n";
 }
 
 int
 oc_coproc::loop(void)
 {
     bool leave = false;
+    int no = 0;
     coroutine_t *ctr_reg = (coroutine_t *)c64i.get_coprocreq();
     char *t = (char *)ctr_reg;
     std::cout << name << " is waiting for CoRoutine Requests...\n";
@@ -31,14 +35,28 @@ oc_coproc::loop(void)
     while (!leave)
     {
         //printf("ctr_reg(%p): %02x/%02x/%02x/%02x/%02x/%02x/%02x/%02x/%02x\n", t, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8]);
-        if ((ctr_reg->cmd > 3) || !oc_crs[ctr_reg->cmd])
-            cout << "not assigned\n";
+        if (!oc_crs[ctr_reg->cmd])
+        {
+            cout << "not assigned: " << ++no << '\n';
+            usleep(1000 * 1000);
+        }
         else
-            leave = oc_crs[ctr_reg->cmd]->run();
-        ctr_reg->cmd = CNOP;
-        ctr_reg->res = 1;
-        usleep(50 * 1000);
-        //usleep(1000);
+        {
+            switch(oc_crs[ctr_reg->cmd]->run()) 
+            {
+                case 0xfe: 
+                    break; // CNOP don't do anything
+                case 0xff:
+                    cout << "exit called\n";
+                    leave = true;
+                default: // some function success
+                    ctr_reg->cmd = CNOP;
+                    ctr_reg->res = 1;
+                    break;
+            }
+        }
+        //usleep(50 * 1000);
+        usleep(10);
         CACHE_FLUSH();
     }
     std::cout << __FUNCTION__ << " done.\n";
@@ -48,7 +66,7 @@ oc_coproc::loop(void)
 template<>
 int CoRoutine<char *>::_run(void)
 {
-    return 0;
+    return 0xfe;
 }
 
 template<>
@@ -59,19 +77,31 @@ int CoRoutine<cr_line_t>::_run(void)
     return c64i.line(p->x1, p->y1, p->x2, p->y2, p->c);
 }
 
-// 16 bit for Y and radius (used by Elite harmless)
-template<>
-int CoRoutine<cr_circle_el_t>::_run(void)
-{
-    //show = true;
-    return c64i.circle(p->x1, p->y1, p->r, p->c);
-}
 
 template<>
 int CoRoutine<cr_circle_t>::_run(void)
 {
     //show = true;
     return c64i.circle(p->x1, p->y1, p->r, p->c);
+}
+
+// 16 bit for Y and radius (used by Elite harmless)
+template<>
+int CoRoutine<cr_circle_el_t>::_run(void)
+{
+    //show = true;
+    //printf("%s: (%d,%d), r= %d, col = 0x%02x\n", __FUNCTION__, p->x1, p->y1, p->r, p->c);
+    return c64i.circle(p->x1, p->y1, p->r, p->c);
+}
+
+template<>
+int CoRoutine<cr_cfg_t>::_run(void)
+{
+    c64i.set_canvas(p->canvas);
+    c64i.set_viewport(p->x1, p->y1, p->x2, p->y2);
+    show = true;
+    printf("%s: canvas = 0x%04x, vp = { (%d,%d),(%d,%d) }\n", __FUNCTION__, p->canvas, p->x1, p->y1, p->x2, p->y2);
+    return 0;
 }
 
 #if 0
