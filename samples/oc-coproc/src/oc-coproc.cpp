@@ -20,7 +20,6 @@ oc_coproc::oc_coproc(c64 &_c64, string n) : c64i(_c64), name(n)
     oc_crs[CCIRCLE_EL] = new CoRoutine<cr_circle_el_t>{"circle_el", _c64};
     oc_crs[CCFG] = new CoRoutine<cr_cfg_t>{"config", _c64};
     oc_crs[CEXIT] = new CoRoutine<char *>{"exit", _c64};
-    cout << "size allocated: " << oc_crs.size() << " [6] = '" << oc_crs[6] << "'\n";
 }
 
 int
