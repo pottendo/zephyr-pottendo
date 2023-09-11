@@ -21,6 +21,7 @@ void arch_irq_enable(unsigned int irq)
 	__asm__ volatile ("csrrs %0, mie, %1\n"
 			  : "=r" (mie)
 			  : "r" (1 << irq));    
+	riscv_plic_irq_enable(irq);
 }
 
 void z_riscv_irq_priority_set(uint32_t irq, uint32_t priority, uint32_t flags)

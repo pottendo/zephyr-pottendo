@@ -58,7 +58,7 @@ int
 main(void)
 {
 #ifdef ZEPHYR
-    LED_B(32); LED_R(32);
+    LED_R(32);
 #endif
     std::cout << "Orangecart mailbox test...\n";
 #ifdef C64    
