@@ -20,6 +20,10 @@ config FPU
 config DISK_DRIVER_SDMMC
         default y if DISK_DRIVERS
 
+config C64_MEMBASE
+	hex "memory address, where bitstream maps the C64 64k"
+	default 0x00000000
+
 endif # BOARD_ORANGECART
 
 ############################################## FPU
@@ -37,6 +41,10 @@ config FPU
 config DISK_DRIVER_SDMMC
         default y if DISK_DRIVERS
 
+config C64_MEMBASE
+	hex "memory address, where bitstream maps the C64 64k"
+	default 0x0f000000
+
 endif # BOARD_ORANGECART_FPU
 
 ############################################## SMP
@@ -53,5 +61,9 @@ config FPU
 
 config DISK_DRIVER_SDMMC
         default y if DISK_DRIVERS
+
+config C64_MEMBASE
+	hex "memory address, where bitstream maps the C64 64k"
+	default 0x0f000000
 
 endif # BOARD_ORANGECART_SMP

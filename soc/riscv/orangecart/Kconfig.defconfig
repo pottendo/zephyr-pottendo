@@ -18,4 +18,8 @@ config RISCV_HAS_PLIC
 config NUM_IRQS
 	default 12
 
+config C64_MEMBASE
+	hex
+	default 0x00000000
+
 endif 
