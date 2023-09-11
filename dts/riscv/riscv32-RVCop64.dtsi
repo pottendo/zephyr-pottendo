@@ -70,7 +70,7 @@
 		uart1: serial@f0004800 {
 			compatible = "litex,uart0";
 			interrupt-parent = <&intc0>;
-			interrupts = <0x4 7>;
+			interrupts = <0x3 7>;
 			reg = <0xf0004800 0x4
 				0xf0004804 0x4
 				0xf0004808 0x4

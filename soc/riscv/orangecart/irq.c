@@ -5,6 +5,7 @@
 /* fixme: introduce proper SOC KConfig item */
 #if defined(CONFIG_BOARD_ORANGECART_SMP) || defined(CONFIG_BOARD_ORANGECART_FPU)
 #include <stdint.h>
+#include <zephyr/irq.h>
 //#include <zephyr/arch/riscv/arch.h>
 
 /*
@@ -21,6 +22,19 @@ void arch_irq_enable(unsigned int irq)
 			  : "=r" (mie)
 			  : "r" (1 << irq));    
 }
+
+void z_riscv_irq_priority_set(uint32_t irq, uint32_t priority, uint32_t flags)
+{
+	unsigned int level = irq_get_level(irq);
+printf("irq = %d, level = %d, prio=%d\n", irq, level, priority);
+	if (level == 2) {
+		irq = irq_from_level_2(irq);
+		riscv_plic_set_priority(irq, priority);
+		return;
+	}
+	riscv_plic_set_priority(irq, priority);
+}
+
 #endif /* CONFIG_BOARD_ORANGECARD_SMP */
 
 void led_ping(void)

@@ -45,6 +45,9 @@ config C64_MEMBASE
 	hex "memory address, where bitstream maps the C64 64k"
 	default 0x0f000000
 
+config RISCV_HAS_PLIC
+	default y
+	
 endif # BOARD_ORANGECART_FPU
 
 ############################################## SMP

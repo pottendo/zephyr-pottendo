@@ -66,8 +66,8 @@
             intc0: interrupt-controller@f0c00000 {
                 compatible = "sifive,plic-1.0.0";
                 reg = <0xf0c00000 0x00002000
-			       0xf0c02000 0x001fe000
-			       0xf0e00000 0x00200000>;
+    		        0xf0c02000 0x001fe000
+			        0xf0e00000 0x00200000>;
                 #address-cells = <0>;
                 #interrupt-cells = <2>;
                 interrupt-controller;

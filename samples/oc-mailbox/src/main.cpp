@@ -4,8 +4,8 @@
 
 #include "c64-lib.h"
 
-const int OC_IRQ = 4;
-const int OC_IRQPRIO = 2;
+const int OC_IRQ = 5;
+const int OC_IRQPRIO = 7;
 
 #define OC_IRQCONFIRM ((uint32_t *) 0xe000003c)
 volatile uint32_t confirm;
@@ -17,9 +17,23 @@ c64 c64i;
 
 void oc_isr(void *arg)
 {
-    static int i = 10;
-    LED_R(i);
-    i+=10;
+    static int i = 0;
+    switch (i % 4) 
+    {
+    case 1:
+        LED_R(64);
+        break;
+    case 2:
+        LED_G(64);
+        break;
+    case 3:
+        LED_B(64);
+        break;
+    default:
+        LED(0);
+    }
+    i++;
+
     confirm = *OC_IRQCONFIRM;
 }
 
