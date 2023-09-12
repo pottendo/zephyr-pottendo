@@ -7,13 +7,12 @@
 const int OC_IRQ = 5;
 const int OC_IRQPRIO = 7;
 
-#define OC_IRQCONFIRM ((uint32_t *) 0xe000003c)
 volatile uint32_t confirm;
-#define TRIGGER_C64_ISR() (*((uint8_t *)0xe000003b))++   // trigger C64 ISR
-
+#define OC_SHM 0xe0000000
 using namespace std;
 
-c64 c64i;
+c64 c64i(OC_SHM);
+oc_coproc co_proc(c64i);
 
 void oc_isr(void *arg)
 {
@@ -34,6 +33,7 @@ void oc_isr(void *arg)
     }
     i++;
 
+    co_proc.isr_req();
     confirm = *OC_IRQCONFIRM;
 }
 

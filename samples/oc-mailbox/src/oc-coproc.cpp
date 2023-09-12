@@ -62,6 +62,27 @@ oc_coproc::loop(void)
     return 0;
 }
 
+int 
+oc_coproc::isr_req(void)
+{
+	coroutine_t *ctr_reg = (coroutine_t *)c64i.get_coprocreq();
+	if (!oc_crs[ctr_reg->cmd]) {
+        static int no = 0;
+		cout << "not assigned: " << ++no << '\n';
+	} else {
+		switch (oc_crs[ctr_reg->cmd]->run()) {
+		case 0xfe:
+			break;  // CNOP don't do anything
+		case 0xff:  // ignore exit
+		default: // some function success
+			ctr_reg->cmd = CNOP;
+			ctr_reg->res = 1;           
+			break;
+		}
+	}
+    return 0;
+}
+
 template<>
 int CoRoutine<char *>::_run(void)
 {

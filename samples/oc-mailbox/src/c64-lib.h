@@ -24,6 +24,8 @@ extern volatile const char *__led;
 #else
 #define CACHE_FLUSH()
 #endif
+#define OC_IRQCONFIRM ((uint32_t *) 0xe000003c)
+#define TRIGGER_C64_ISR() (*((uint8_t *)0xe000003b))++   // trigger C64 ISR
 
 #define PIXELW 1 // 2
 #define IMG_W 320 // 320
@@ -65,7 +67,7 @@ class c64
     int fhline(int X1, int Y1, int X2, int Y2, uint8_t c);
 
   public:
-    c64(uint16_t cr = 0xc000, uint16_t c = 0x4000, uint32_t phys_addr = c64_physaddress);
+    c64(uint32_t cr = 0xc000, uint16_t c = 0x4000, uint32_t phys_addr = c64_physaddress);
     ~c64();
 
     inline unsigned char *get_mem(void) { return mem; }

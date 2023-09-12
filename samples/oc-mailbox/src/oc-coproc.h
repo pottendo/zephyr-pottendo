@@ -107,5 +107,6 @@ public:
     ~oc_coproc() = default; // fixme, delete needed
 
     int loop(void);
+    int isr_req(void);
 };
 
