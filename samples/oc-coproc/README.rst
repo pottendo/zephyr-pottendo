@@ -1,6 +1,6 @@
 .. _mandelbrot:
 
-Oraangecart - CoProcessor
+Orangecart - CoProcessor
 #########################
 
 Overview
