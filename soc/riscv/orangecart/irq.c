@@ -59,9 +59,8 @@ void arch_irq_disable(unsigned int irq)
 	 * (atomic read and clear bits in CSR register)
 	 */
 	mie = csr_read_clear(mie, 1 << irq);
-	riscv_plic_irq_disable(irq)
+	riscv_plic_irq_disable(irq);
 }
-
 
 void z_riscv_irq_priority_set(uint32_t irq, uint32_t priority, uint32_t flags)
 {
