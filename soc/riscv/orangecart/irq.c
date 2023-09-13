@@ -66,7 +66,7 @@ void z_riscv_irq_priority_set(uint32_t irq, uint32_t priority, uint32_t flags)
 {
 	unsigned int level = irq_get_level(irq);
 	if (level == 2) {
-		printf("irq = %d, level = %d, prio=%d\n", irq, level, priority);
+		//printf("irq = %d, level = %d, prio=%d\n", irq, level, priority);
 		irq = irq_from_level_2(irq);
 		riscv_plic_set_priority(irq, priority);
 		return;
