@@ -3,8 +3,9 @@
 #include <pthread.h>
 
 #include "c64-lib.h"
+#include "oc-coproc.h"
 
-const int OC_IRQ = 5;
+const int OC_IRQ = 4;
 const int OC_IRQPRIO = 7;
 
 volatile uint32_t confirm;
@@ -50,7 +51,7 @@ mailbox(void)
     {
         cout << "waiting for ISR..." << l++ << '\n';
         sleep(1);
-        TRIGGER_C64_ISR();
+        //TRIGGER_C64_ISR();
     }
 }
 

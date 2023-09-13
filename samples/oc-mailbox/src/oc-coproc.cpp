@@ -62,11 +62,45 @@ oc_coproc::loop(void)
     return 0;
 }
 
+static void hexdump(const char *buf, int len)
+{
+    int i;
+    int idx = 0;
+    int lines = 0;
+    while (len > 0) {
+        printf("%04x: ", (unsigned) idx);
+        if (lines++ > 255) {      /* just print 8 lines */
+            printf("...\n");
+            break;
+        }
+        for (i = 0; i < 16; i++) {
+            if (i < len) {
+                printf("%02x ", (uint8_t) buf[idx + i]);
+            } else {
+                printf("   ");
+            }
+        }
+        printf ("|");
+        for (i = 0; i < 16; i++) {
+            if (i < len) {
+                printf("%c", isprint(buf[idx + i]) ? buf[idx + i] : '.');
+            } else {
+                printf(" ");
+            }
+        }
+        printf ("|\n");
+        idx += 16;
+        len -= 16;
+    }
+}
+
 int 
 oc_coproc::isr_req(void)
 {
 	coroutine_t *ctr_reg = (coroutine_t *)c64i.get_coprocreq();
-	if (!oc_crs[ctr_reg->cmd]) {
+	char *t = (char *)ctr_reg;
+    hexdump(t, 32);
+    if (!oc_crs[ctr_reg->cmd]) {
         static int no = 0;
 		cout << "not assigned: " << ++no << '\n';
 	} else {
@@ -101,7 +135,8 @@ int CoRoutine<cr_line_t>::_run(void)
 template<>
 int CoRoutine<cr_circle_t>::_run(void)
 {
-    //show = true;
+    show = true;
+    printf("%s: (%d,%d), r= %d, col = 0x%02x\n", __FUNCTION__, p->x1, p->y1, p->r, p->c);
     return c64i.circle(p->x1, p->y1, p->r, p->c);
 }
 
