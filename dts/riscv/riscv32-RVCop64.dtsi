@@ -227,7 +227,16 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 		};
-
+		mailbox: mb@e0000000 {
+			compatible = "pottendo,oc-mailbox";
+			reg = <0xe0000000 0x3a
+				   0xe000003b 0x1
+				   0xe000003c 0x4>;
+			reg-names = "shm", "trigger", "confirm"; 
+			interrupt-parent = <&intc0>;
+			interrupts = <4 7>;
+			status = "disabled";
+		};
 /* 		i2c0: i2c@e0005000 {
 			compatible = "litex,i2c";
 			reg = <0xe0005000 0x4 0xe0005004 0x4>;

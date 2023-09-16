@@ -1,0 +1,12 @@
+# A YAML binding for orangecart's mailbox device
+compatible: "pottendo,oc-mailbox"
+description: Orangecart's memory mapped mailbox
+include: base.yaml
+
+properties:
+  reg:
+    required: true
+
+interrupt-cells:
+  - irq
+  - priority

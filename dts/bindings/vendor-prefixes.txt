@@ -480,6 +480,7 @@ pocketbook	PocketBook International SA
 polaroid	Polaroid Corporation
 portwell	Portwell Inc.
 poslab	Poslab Technology Co., Ltd.
+pottendo	pottendo productions
 pov	Point of View International B.V.
 powertip	Powertip Tech. Corp.
 powervr	PowerVR (deprecated, use img)

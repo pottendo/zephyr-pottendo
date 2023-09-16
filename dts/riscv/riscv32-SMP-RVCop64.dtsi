@@ -216,8 +216,17 @@
                 ngpios = < 4 >;
                 status = "disabled";
             };
+            mailbox: mb@80000000 {
+                compatible = "pottendo,oc-mailbox";
+                reg = <0x80000000 0x3a
+                       0x8000003b 0x1
+                       0x8000003c 0x4>;
+                reg-names = "shm", "trigger", "confirm"; 
+                interrupt-parent = <&intc0>;
+                interrupts = <5 7>;
+                status = "disabled";
+            };        
         };
-
         aliases {
             serial0 = &liteuart0;
         };
