@@ -19,6 +19,7 @@ oc_coproc::oc_coproc(c64 &_c64, string n) : c64i(_c64), name(n)
     oc_crs[CCIRCLE] = new CoRoutine<cr_circle_t>{"circle", _c64};
     oc_crs[CCIRCLE_EL] = new CoRoutine<cr_circle_el_t>{"circle_el", _c64};
     oc_crs[CCFG] = new CoRoutine<cr_cfg_t>{"config", _c64};
+    oc_crs[CTEST] = new CoRoutine<cr_test_t>{"test", _c64};
     oc_crs[CEXIT] = new CoRoutine<char *>{"exit", _c64};
 }
 
@@ -28,7 +29,7 @@ oc_coproc::loop(void)
     bool leave = false;
     int no = 0;
     coroutine_t *ctr_reg = (coroutine_t *)c64i.get_coprocreq();
-    char *t = (char *)ctr_reg;
+    //char *t = (char *)ctr_reg;
     std::cout << name << " is waiting for CoRoutine Requests...\n";
     CACHE_FLUSH();
     while (!leave)
@@ -62,13 +63,13 @@ oc_coproc::loop(void)
     return 0;
 }
 
-static void hexdump(const char *buf, int len)
+static void hexdump(const char *base, const char *buf, int len)
 {
     int i;
     int idx = 0;
     int lines = 0;
     while (len > 0) {
-        printf("%04x: ", (unsigned) idx);
+        printf("0x%08x: ", (unsigned int) (idx + base));
         if (lines++ > 255) {      /* just print 8 lines */
             printf("...\n");
             break;
@@ -99,27 +100,40 @@ oc_coproc::isr_req(void)
 {
 	coroutine_t *ctr_reg = (coroutine_t *)c64i.get_coprocreq();
 	char *t = (char *)ctr_reg;
-    hexdump(t, 32);
+    //hexdump(t, t, 0x3b);
     if (!oc_crs[ctr_reg->cmd]) {
         static int no = 0;
 		cout << "not assigned: " << ++no << '\n';
+        return 0;
 	} else {
 		switch (oc_crs[ctr_reg->cmd]->run()) {
 		case 0xfe:
+            return 0;
 			break;  // CNOP don't do anything
 		case 0xff:  // ignore exit
 		default: // some function success
-			ctr_reg->cmd = CNOP;
-			ctr_reg->res = 1;           
+			//ctr_reg->cmd = CNOP;
+			//ctr_reg->res = 1;           
+            return 0;
 			break;
 		}
 	}
-    return 0;
+    return 1;
 }
 
 template<>
 int CoRoutine<char *>::_run(void)
 {
+    return 0xfe;
+}
+
+template<>
+int CoRoutine<cr_test_t>::_run(void)
+{
+    for (int i = 0; i < 0x3c * 10; i++)
+    {
+        c64i.get_mem()[0x04000 + i%0x3c] = ((uint8_t *)OC_SHM)[i%0x3c];
+    }
     return 0xfe;
 }
 

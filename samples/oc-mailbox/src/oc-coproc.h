@@ -52,7 +52,7 @@ class CoRoutine : public CoRoutine_t {
     c64 &c64i;
 
 public:
-    CoRoutine(string n, c64 &_c64) : CoRoutine_t(n), c64i(_c64) { p = (Paramstruct *)_c64.get_coprocreq(); cout << "param = " << p << '\n';};
+    CoRoutine(string n, c64 &_c64) : CoRoutine_t(n), c64i(_c64) { p = (Paramstruct *)_c64.get_coprocreq(); };
     ~CoRoutine() = default;
 
     int _run(void) override;
@@ -97,8 +97,13 @@ typedef struct __attribute__((packed)) cr_cfg {
     uint8_t y2;
 } cr_cfg_t;
 
+typedef struct __attribute__((packed)) cr_test {
+    coroutine_t reg;
+    char *test_pattern;
+} cr_test_t;
+
 class oc_coproc {
-    enum { CSUCC = 0, CNOP = 0, CLINE = 1, CCIRCLE = 2, CCIRCLE_EL = 3, CCFG = 4, CEXIT = 0xff };
+    enum { CSUCC = 0, CNOP = 0, CLINE = 1, CCIRCLE = 2, CCIRCLE_EL = 3, CCFG = 4, CTEST = 0xfe, CEXIT = 0xff };
     c64 &c64i;
     string name;
     vector<CoRoutine_t *> oc_crs;

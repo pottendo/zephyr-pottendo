@@ -19,13 +19,19 @@ extern volatile const char *__led;
 #define LED_G(val) { uint32_t v = *__led; v &= ~(((uint32_t)(1 << 8)-1) << 8); v |= ((val) << 8); (* ((uint32_t *)__led)) = v; }
 #define LED_B(val) { uint32_t v = *__led; v &= ~(((uint32_t)(1 << 8)-1) << 0); v |= ((val) << 0); (* ((uint32_t *)__led)) = v; }
 #define LED(val) { (* ((uint32_t *)__led)) = (val);}
+
 #ifdef ZEPHYR
 #define CACHE_FLUSH() __asm__ __volatile__(".word 0x500F")
+  
+#define OC_IRQ DT_IRQ_BY_IDX(DT_NODELABEL(mailbox), 0, irq)
+#define OC_IRQPRIO DT_IRQ_BY_IDX(DT_NODELABEL(mailbox), 0, priority)
+#define OC_SHM DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), shm)
+#define OC_IRQCONFIRM() { volatile uint32_t d __attribute((unused)) = \
+                          *((uint32_t *) DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), confirm)); }
+#define TRIGGER_C64_ISR() (*((uint8_t *) DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), trigger)))++   // trigger C64 ISR
 #else
 #define CACHE_FLUSH()
 #endif
-#define OC_IRQCONFIRM ((uint32_t *) 0xe000003c)
-#define TRIGGER_C64_ISR() (*((uint8_t *)0xe000003b))++   // trigger C64 ISR
 
 #define PIXELW 1 // 2
 #define IMG_W 320 // 320
