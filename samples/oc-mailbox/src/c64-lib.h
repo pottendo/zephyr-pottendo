@@ -22,13 +22,12 @@ extern volatile const char *__led;
 
 #ifdef ZEPHYR
 #define CACHE_FLUSH() __asm__ __volatile__(".word 0x500F")
-  
 #define OC_IRQ DT_IRQ_BY_IDX(DT_NODELABEL(mailbox), 0, irq)
 #define OC_IRQPRIO DT_IRQ_BY_IDX(DT_NODELABEL(mailbox), 0, priority)
 #define OC_SHM DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), shm)
 #define OC_IRQCONFIRM() { volatile uint32_t d __attribute((unused)) = \
                           *((uint32_t *) DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), confirm)); }
-#define TRIGGER_C64_ISR() (*((uint8_t *) DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), trigger)))++   // trigger C64 ISR
+#define TRIGGER_C64_ISR() { (*((uint8_t *) DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), trigger))) = 0xff; }   // trigger C64 ISR
 #else
 #define CACHE_FLUSH()
 #endif

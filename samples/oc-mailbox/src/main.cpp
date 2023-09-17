@@ -90,11 +90,15 @@ mailbox(void)
     IRQ_CONNECT(OC_IRQ, OC_IRQPRIO, oc_isr, nullptr, 0);
     irq_enable(OC_IRQ);
     
+    //cout << "prepare C64!\n";
+    //sleep(5);
+    //c64i.screencols(VIC::GREEN, VIC::BLUE);
     int l = 1;
     while (true)
     {
         cout << "waiting for ISR..." << l++ << ", irq-no# " << no_irqs << '\n';
         sleep(1);
+        //TRIGGER_C64_ISR();
     }
 }
 

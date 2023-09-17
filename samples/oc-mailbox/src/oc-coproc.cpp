@@ -113,8 +113,8 @@ oc_coproc::isr_req(void)
 		case 0xff:  // ignore exit
 		default: // some function success
 			//ctr_reg->cmd = CNOP;
-			//ctr_reg->res = 1;           
-            return 0;
+			//ctr_reg->res = 1;
+            usleep(100 * 1000);
 			break;
 		}
 	}
@@ -130,11 +130,12 @@ int CoRoutine<char *>::_run(void)
 template<>
 int CoRoutine<cr_test_t>::_run(void)
 {
-    for (int i = 0; i < 0x3c * 10; i++)
+    show = true;
+    for (int i = 0; i < (0x3b * 10); i++)
     {
-        c64i.get_mem()[0x04000 + i%0x3c] = ((uint8_t *)OC_SHM)[i%0x3c];
+        //c64i.get_mem()[0x0400 + i] = ((uint8_t *)OC_SHM)[i%0x3b];
     }
-    return 0xfe;
+    return 0x0;
 }
 
 template<>
