@@ -1,9 +1,5 @@
 #include "oc-coproc.h"
 #include "c64-lib.h"
-#ifdef ZEPHYR
-#include <pthread.h>
-#define usleep(m) k_sleep(K_USEC(m))
-#endif
 
 #ifdef ZEPHYR
 #define CACHE_FLUSH() __asm__ __volatile__(".word 0x500F")
@@ -114,7 +110,7 @@ oc_coproc::isr_req(void)
 		default: // some function success
 			//ctr_reg->cmd = CNOP;
 			//ctr_reg->res = 1;
-            usleep(100 * 1000);
+            //usleep(100 * 1000);
 			break;
 		}
 	}
@@ -131,9 +127,9 @@ template<>
 int CoRoutine<cr_test_t>::_run(void)
 {
     show = true;
-    for (int i = 0; i < (0x3b * 10); i++)
+    for (int i = 0; i < 7992; i++)
     {
-        //c64i.get_mem()[0x0400 + i] = ((uint8_t *)OC_SHM)[i%0x3b];
+        c64i.get_mem()[0x04000 + i] = OC_SHM[i%0x3b];
     }
     return 0x0;
 }

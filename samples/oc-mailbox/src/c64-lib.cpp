@@ -19,7 +19,7 @@
 
 volatile const char *__led = (char *)0xf0002000;
 
-c64::c64(uint32_t cr, uint16_t c, uint32_t phys_addr)
+c64::c64(uint8_t *cr, uint16_t c, uint32_t phys_addr)
     : c64_phys(phys_addr)
 {
     mem = vic = cia1 = cia2 = sid = oc_ctrl = nullptr;
@@ -33,10 +33,7 @@ c64::c64(uint32_t cr, uint16_t c, uint32_t phys_addr)
         cia2 = &mem[0xdd00];
         sid = &mem[0xd400];
         oc_ctrl = &mem[0xdf00];
-        if (cr >= 0x10000)
-            coproc_reg = (unsigned char *)cr;
-        else
-            coproc_reg = &mem[cr];
+        coproc_reg = cr;
         canvas = &mem[c];
         vp.x1 = 0; vp.y2 = 0;
         vp.x2 = IMG_W / PIXELW; vp.y2 = IMG_H;

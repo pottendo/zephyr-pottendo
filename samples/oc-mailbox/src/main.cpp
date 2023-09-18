@@ -44,7 +44,9 @@ void *cr_thread(void *arg)
     {
         sem_wait(&cr_sem);
         if (co_proc.isr_req())
-            TRIGGER_C64_ISR();
+        {
+            OC_SHM[0x3f] = '\0';
+        }
     }
     return nullptr;
 }
@@ -96,9 +98,14 @@ mailbox(void)
     int l = 1;
     while (true)
     {
-        cout << "waiting for ISR..." << l++ << ", irq-no# " << no_irqs << '\n';
-        sleep(1);
+        //cout << "waiting for ISR..." << l << ", irq-no# " << no_irqs << '\n';
+        l++;
+        usleep(1 * 1000);
         //TRIGGER_C64_ISR();
+        for (int i = 0; i < 7992; i++)
+        {
+            c64i.get_mem()[0x04000 + i] ^= ((i +l) % 256);
+        }
     }
 }
 

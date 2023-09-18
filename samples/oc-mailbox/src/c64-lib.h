@@ -22,9 +22,10 @@ extern volatile const char *__led;
 
 #ifdef ZEPHYR
 #define CACHE_FLUSH() __asm__ __volatile__(".word 0x500F")
+#define usleep(m) k_sleep(K_USEC(m))
 #define OC_IRQ DT_IRQ_BY_IDX(DT_NODELABEL(mailbox), 0, irq)
 #define OC_IRQPRIO DT_IRQ_BY_IDX(DT_NODELABEL(mailbox), 0, priority)
-#define OC_SHM DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), shm)
+#define OC_SHM ((uint8_t*)DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), shm))
 #define OC_IRQCONFIRM() { volatile uint32_t d __attribute((unused)) = \
                           *((uint32_t *) DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), confirm)); }
 #define TRIGGER_C64_ISR() { (*((uint8_t *) DT_REG_ADDR_BY_NAME(DT_NODELABEL(mailbox), trigger))) = 0xff; }   // trigger C64 ISR
@@ -72,7 +73,7 @@ class c64
     int fhline(int X1, int Y1, int X2, int Y2, uint8_t c);
 
   public:
-    c64(uint32_t cr = 0xc000, uint16_t c = 0x4000, uint32_t phys_addr = c64_physaddress);
+    c64(uint8_t *cr = (uint8_t *)0xc000, uint16_t c = 0x4000, uint32_t phys_addr = c64_physaddress);
     ~c64();
 
     inline unsigned char *get_mem(void) { return mem; }
