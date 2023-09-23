@@ -38,7 +38,10 @@ public:
         clock_gettime(CLOCK_REALTIME, &tend);
         timespec_diff(&tend, &tstart, &dt);
         if (show)
+        {
             printf("coroutine '%s' done in: %lld.%03lds\n", name.c_str(), dt.tv_sec, dt.tv_nsec / 1000000L);
+            LED(0);
+        }
         return res;
     }
 

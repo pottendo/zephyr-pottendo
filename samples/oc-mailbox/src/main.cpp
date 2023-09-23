@@ -16,6 +16,8 @@ static int no_irqs = 0;
 pthread_t cr_th;
 sem_t cr_sem;
 pthread_attr_t attr;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+struct timespec tstart, tend, dt;
 
 void oc_isr(void *arg)
 {
@@ -28,25 +30,50 @@ void oc_isr(void *arg)
         LED_G(64);
         break;
     case 3:
-        LED_B(64);
+        //LED_B(64);
         break;
     default:
         LED(0);
     }
     OC_IRQCONFIRM();
+    clock_gettime(CLOCK_REALTIME, &tstart);
     sem_post(&cr_sem);
+    LED_B(64);
+}
+
+void timespec_diff(struct timespec *a, struct timespec *b, struct timespec *result)
+{
+  	result->tv_sec  = a->tv_sec  - b->tv_sec;
+   	result->tv_nsec = a->tv_nsec - b->tv_nsec;
+   	if (result->tv_nsec < 0)
+   	{
+        --result->tv_sec;
+        result->tv_nsec += 1000000000L;
+    }
 }
 
 void *cr_thread(void *arg)
 {
-    cout << "coroutine thread started...\n";
+    sched_param sp;
+    int pol, ret;
+    pthread_getschedparam(cr_th, &pol, &sp);
+    sp.sched_priority++;
+    if ((ret = pthread_setschedparam(cr_th, pol, &sp)) != 0)
+        printf("pthread setschedparam failed for thread: %d\n", ret);   
+    pthread_getschedparam(cr_th, &pol, &sp);
+    printf("starting cr thread with priority %d\n", sp.sched_priority);
     while (true)
     {
         sem_wait(&cr_sem);
+        clock_gettime(CLOCK_REALTIME, &tend);
+        timespec_diff(&tend, &tstart, &dt);
+        //printf("cr blocked for: %lld.%03lds\n", dt.tv_sec, dt.tv_nsec / 1000000L);
+        //pthread_mutex_lock(&mutex);
         if (co_proc.isr_req())
         {
             OC_SHM[0x3f] = '\0';
         }
+        //pthread_mutex_unlock(&mutex);
     }
     return nullptr;
 }
@@ -67,6 +94,26 @@ static char *stacks;
 #endif
 
 void
+circle_test(void)
+{
+    struct timespec tstart, tend, dt;
+
+    clock_gettime(CLOCK_REALTIME, &tstart);
+    //pthread_mutex_lock(&mutex);
+    memset(c64i.get_canvas(), 0, 8000);
+    for (int i = 50; i < 180; i+=2)
+    {
+        c64i.circle(i, 100, 10 + i, 0xC1);
+        //sched_yield();
+        usleep(1000);
+    }
+    //pthread_mutex_unlock(&mutex);
+    clock_gettime(CLOCK_REALTIME, &tend);
+    timespec_diff(&tend, &tstart, &dt);
+    printf("circles done in: %lld.%03lds\n", dt.tv_sec, dt.tv_nsec / 1000000L);
+    LED(0);
+}
+void
 mailbox(void)
 {
     cout << __FUNCTION__ << ": testing...\n";
@@ -83,6 +130,7 @@ mailbox(void)
     pthread_attr_init(&attr);
     pthread_attr_setschedpolicy(&attr, SCHED_RR);
     pthread_attr_setstack(&attr, stacks, STACK_SIZE);
+    //pthread_mutex_init(&mutex, nullptr);
     int ret;
     ret = pthread_create(&cr_th, &attr, cr_thread, nullptr);
     if (ret != 0)
@@ -98,14 +146,17 @@ mailbox(void)
     int l = 1;
     while (true)
     {
-        //cout << "waiting for ISR..." << l << ", irq-no# " << no_irqs << '\n';
+        cout << "waiting for ISR..." << l << ", irq-no# " << no_irqs << '\n';
         l++;
-        usleep(1 * 1000);
+        usleep(1000 * 1000);
         //TRIGGER_C64_ISR();
+        //circle_test();
+#if 0        
         for (int i = 0; i < 7992; i++)
         {
             c64i.get_mem()[0x04000 + i] ^= ((i +l) % 256);
         }
+#endif
     }
 }
 

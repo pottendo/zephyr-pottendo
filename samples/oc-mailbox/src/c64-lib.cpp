@@ -145,9 +145,10 @@ void c64::setpx(int x, int y, uint8_t c)
         t &= mask;
     t ^= val;
     canvas[cidx] = t;
+    //usleep(1000);
 #ifdef ZEPHYR
-    volatile char *led = (char *)0xf0002000;
-    *led = ((*led) + 1);
+    //volatile char *led = (char *)0xf0002000;
+    //*led = ((*led) + 1);
 #endif
     // sched_yield();
 }

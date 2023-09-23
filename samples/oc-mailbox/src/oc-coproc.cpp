@@ -137,8 +137,8 @@ int CoRoutine<cr_test_t>::_run(void)
 template<>
 int CoRoutine<cr_line_t>::_run(void)
 {
-    //show = true;
-    //printf("(%d,%d) -> (%d, %d), col = %d\n", p->x1, p->y1, p->x2, p->y2, p->c);
+    show = true;
+    printf("(%d,%d) -> (%d, %d), col = %d\n", p->x1, p->y1, p->x2, p->y2, p->c);
     return c64i.line(p->x1, p->y1, p->x2, p->y2, p->c);
 }
 
