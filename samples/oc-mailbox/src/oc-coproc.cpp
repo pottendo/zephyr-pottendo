@@ -120,13 +120,14 @@ oc_coproc::isr_req(void)
 template<>
 int CoRoutine<char *>::_run(void)
 {
+    show = SHOW;
     return 0xfe;
 }
 
 template<>
 int CoRoutine<cr_test_t>::_run(void)
 {
-    show = true;
+    show = SHOW;
     for (int i = 0; i < 7992; i++)
     {
         c64i.get_mem()[0x04000 + i] = OC_SHM[i%0x3b];
@@ -137,7 +138,7 @@ int CoRoutine<cr_test_t>::_run(void)
 template<>
 int CoRoutine<cr_line_t>::_run(void)
 {
-    show = true;
+    show = SHOW;
     printf("(%d,%d) -> (%d, %d), col = %d\n", p->x1, p->y1, p->x2, p->y2, p->c);
     return c64i.line(p->x1, p->y1, p->x2, p->y2, p->c);
 }
@@ -146,7 +147,7 @@ int CoRoutine<cr_line_t>::_run(void)
 template<>
 int CoRoutine<cr_circle_t>::_run(void)
 {
-    show = true;
+    show = SHOW;
     printf("%s: (%d,%d), r= %d, col = 0x%02x\n", __FUNCTION__, p->x1, p->y1, p->r, p->c);
     return c64i.circle(p->x1, p->y1, p->r, p->c);
 }
@@ -155,7 +156,7 @@ int CoRoutine<cr_circle_t>::_run(void)
 template<>
 int CoRoutine<cr_circle_el_t>::_run(void)
 {
-    //show = true;
+    show = SHOW;
     //printf("%s: (%d,%d), r= %d, col = 0x%02x\n", __FUNCTION__, p->x1, p->y1, p->r, p->c);
     return c64i.circle(p->x1, p->y1, p->r, p->c);
 }

@@ -113,6 +113,28 @@ circle_test(void)
     printf("circles done in: %lld.%03lds\n", dt.tv_sec, dt.tv_nsec / 1000000L);
     LED(0);
 }
+
+void
+line_test(void)
+{
+    struct timespec tstart, tend, dt;
+
+    clock_gettime(CLOCK_REALTIME, &tstart);
+    //pthread_mutex_lock(&mutex);
+    memset(c64i.get_canvas(), 0, 8000);
+    for (int i = 0; i < 320; i+=2)
+    {
+        c64i.line(i, 0, 319-i, 199, 0xC1);
+        //sched_yield();
+        //usleep(10);
+    }
+    //pthread_mutex_unlock(&mutex);
+    clock_gettime(CLOCK_REALTIME, &tend);
+    timespec_diff(&tend, &tstart, &dt);
+    printf("lines done in: %lld.%03lds\n", dt.tv_sec, dt.tv_nsec / 1000000L);
+    LED(0);
+}
+
 void
 mailbox(void)
 {
@@ -140,9 +162,6 @@ mailbox(void)
     IRQ_CONNECT(OC_IRQ, OC_IRQPRIO, oc_isr, nullptr, 0);
     irq_enable(OC_IRQ);
     
-    //cout << "prepare C64!\n";
-    //sleep(5);
-    //c64i.screencols(VIC::GREEN, VIC::BLUE);
     int l = 1;
     while (true)
     {
@@ -151,12 +170,7 @@ mailbox(void)
         usleep(1000 * 1000);
         //TRIGGER_C64_ISR();
         //circle_test();
-#if 0        
-        for (int i = 0; i < 7992; i++)
-        {
-            c64i.get_mem()[0x04000 + i] ^= ((i +l) % 256);
-        }
-#endif
+        //line_test();
     }
 }
 

@@ -14,6 +14,8 @@
 #define __c64_linux_h__
 #include <stdint.h>
 
+#define SHOW true;
+
 extern volatile const char *__led;
 #define LED_R(val) { uint32_t v = *__led; v &= ~(((uint32_t)(1 << 8)-1) << 16); v |= ((val) << 16); (* ((uint32_t *)__led)) = v; }
 #define LED_G(val) { uint32_t v = *__led; v &= ~(((uint32_t)(1 << 8)-1) << 8); v |= ((val) << 8); (* ((uint32_t *)__led)) = v; }
