@@ -95,3 +95,9 @@ uint8_t tester_unregister_csis(void);
 
 uint8_t tester_init_micp(void);
 uint8_t tester_unregister_micp(void);
+
+uint8_t tester_init_mics(void);
+uint8_t tester_unregister_mics(void);
+
+uint8_t tester_init_ccp(void);
+uint8_t tester_unregister_ccp(void);

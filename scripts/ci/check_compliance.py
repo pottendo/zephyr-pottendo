@@ -22,6 +22,9 @@ from yamllint import config, linter
 from junitparser import TestCase, TestSuite, JUnitXml, Skipped, Error, Failure
 import magic
 
+from west.manifest import Manifest
+from west.manifest import ManifestProject
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from get_maintainer import Maintainers, MaintainersError
 
@@ -612,6 +615,8 @@ flagged.
                               # toolchain Kconfig which is sourced based on
                               # Zephyr toolchain variant and therefore not
                               # visible to compliance.
+        "BOOT_ENCRYPTION_KEY_FILE", # Used in sysbuild
+        "BOOT_ENCRYPT_IMAGE", # Used in sysbuild
         "BOOT_UPGRADE_ONLY", # Used in example adjusting MCUboot config, but
                              # symbol is defined in MCUboot itself.
         "BOOT_SERIAL_BOOT_MODE",     # Used in (sysbuild-based) test/
@@ -1083,6 +1088,40 @@ class MaintainersFormat(ComplianceTest):
                 Maintainers(file)
             except MaintainersError as ex:
                 self.failure(f"Error parsing {file}: {ex}")
+
+class ModulesMaintainers(ComplianceTest):
+    """
+    Check that all modules have a MAINTAINERS entry.
+    """
+    name = "ModulesMaintainers"
+    doc = "Check that all modules have a MAINTAINERS entry."
+    path_hint = "<git-top>"
+
+    def run(self):
+        MAINTAINERS_FILES = ["MAINTAINERS.yml", "MAINTAINERS.yaml"]
+
+        manifest = Manifest.from_file()
+
+        maintainers_file = None
+        for file in MAINTAINERS_FILES:
+            if os.path.exists(file):
+                maintainers_file = file
+                break
+        if not maintainers_file:
+            return
+
+        maintainers = Maintainers(maintainers_file)
+
+        for project in manifest.get_projects([]):
+            if not manifest.is_active(project):
+                continue
+
+            if isinstance(project, ManifestProject):
+                continue
+
+            area = f"West project: {project.name}"
+            if area not in maintainers.areas:
+                self.failure(f"Missing {maintainers_file} entry for: \"{area}\"")
 
 
 class YAMLLint(ComplianceTest):

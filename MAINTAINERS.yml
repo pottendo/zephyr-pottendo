@@ -141,7 +141,6 @@ ARM arch:
   files:
     - arch/arm/
     - arch/arm/core/offsets/
-    - include/zephyr/arch/arm/aarch32/
     - include/zephyr/arch/arm/
     - tests/arch/arm/
     - doc/hardware/arch/arm_cortex_m.rst
@@ -423,8 +422,9 @@ CMSIS-DSP integration:
     - stephanosio
   collaborators:
     - galak
+    - XenuIsWatching
   files:
-    - modules/cmsis/Kconfig.cmsis_dsp
+    - modules/cmsis_dsp/
     - tests/benchmarks/cmsis_dsp/
     - tests/lib/cmsis_dsp/
   labels:
@@ -436,8 +436,9 @@ CMSIS-NN integration:
     - JordanYates
   collaborators:
     - stephanosio
+    - XenuIsWatching
   files:
-    - modules/cmsis/Kconfig.cmsis_nn
+    - modules/cmsis_nn/
     - tests/lib/cmsis_nn/
   labels:
     - "area: CMSIS-NN"
@@ -713,6 +714,7 @@ Release Notes:
     - str4t0m
   files:
     - boards/shields/mcp2515/
+    - boards/shields/tcan4550evm/
     - doc/hardware/peripherals/canbus/
     - drivers/can/
     - drivers/net/canbus.c
@@ -1120,24 +1122,6 @@ Release Notes:
   labels:
     - "area: LED"
 
-"Drivers: lora":
-  status: maintained
-  maintainers:
-    - Mani-Sadhasivam
-  collaborators:
-    - mniestroj
-    - JordanYates
-  files:
-    - drivers/lora/
-    - include/zephyr/drivers/lora.h
-    - samples/drivers/lora/
-    - include/zephyr/lorawan/
-    - subsys/lorawan/
-    - samples/subsys/lorawan/
-    - doc/connectivity/lora_lorawan/index.rst
-  labels:
-    - "area: LoRa"
-
 "Drivers: Modem":
   status: maintained
   maintainers:
@@ -1393,7 +1377,7 @@ Release Notes:
   maintainers:
     - str4t0m
   collaborators:
-    - dp7hgh7
+    - casparfriedrich
   files:
     - doc/hardware/peripherals/w1.rst
     - drivers/w1/
@@ -1717,6 +1701,25 @@ Logging:
     - doc/services/logging/
   labels:
     - "area: Logging"
+
+LoRa and LoRaWAN:
+  status: maintained
+  maintainers:
+    - JordanYates
+  collaborators:
+    - Mani-Sadhasivam
+    - martinjaeger
+    - mniestroj
+  files:
+    - drivers/lora/
+    - include/zephyr/drivers/lora.h
+    - samples/drivers/lora/
+    - include/zephyr/lorawan/
+    - subsys/lorawan/
+    - samples/subsys/lorawan/
+    - doc/connectivity/lora_lorawan/index.rst
+  labels:
+    - "area: LoRa"
 
 MAINTAINERS file:
   status: maintained
@@ -2085,7 +2088,6 @@ Power management:
     - ceolin
   collaborators:
     - nashif
-    - gmarull
     - teburd
     - tmleman
     - JordanYates
@@ -2459,6 +2461,7 @@ NXP Platforms:
     - bperseghetti
     - dbaluta
     - iuliana-prodan
+    - Dat-NguyenDuy
   files:
     - boards/arm/mimx*/
     - boards/arm/frdm_k*/
@@ -2939,8 +2942,28 @@ West:
     - povergoing
   files:
     - modules/cmsis/Kconfig
-    - modules/cmsis/Kconfig.cmsis_dsp
-    - modules/cmsis/Kconfig.cmsis_nn
+  labels:
+    - "area: ARM"
+
+"West project: cmsis-dsp":
+  status: maintained
+  maintainers:
+    - XenuIsWatching
+  collaborators:
+    - stephanosio
+  files:
+    - modules/cmsis_dsp/
+  labels:
+    - "area: ARM"
+
+"West project: cmsis-nn":
+  status: maintained
+  maintainers:
+    - XenuIsWatching
+  collaborators:
+    - stephanosio
+  files:
+    - modules/cmsis_nn/
   labels:
     - "area: ARM"
 
@@ -3011,10 +3034,9 @@ West:
   status: maintained
   maintainers:
     - sylvioalves
-    - glaubermaroto
-    - uLipe
   collaborators:
     - LucasTambor
+    - marekmatej
   files: []
   labels:
     - "platform: ESP32"
@@ -3024,6 +3046,7 @@ West:
   maintainers:
     - kristofer-jonsson-arm
   files:
+    - drivers/misc/ethos_u/
     - modules/hal_ethos_u/
   labels:
     - manifest-hal_ethos_u
@@ -3324,12 +3347,13 @@ West:
     - "area: Tracing"
 
 "West project: nanopb":
-  status: odd fixes
-  collaborators:
+  status: maintained
+  maintainers:
     - pdgendt
   files:
     - modules/nanopb/
     - samples/modules/nanopb/
+    - tests/modules/nanopb/
   labels:
     - "area: Serialization"
 
@@ -3375,6 +3399,16 @@ West:
     - modules/openthread/
   labels:
     - "area: OpenThread"
+
+"West project: percepio":
+  status: maintained
+  maintainers:
+    - eriktamlin
+    - aronlander-pe
+  files:
+    - modules/percepio/
+  labels:
+    - "area: Tracing"
 
 "West project: picolibc":
   status: maintained
@@ -3439,15 +3473,6 @@ West:
     - modules/Kconfig.tinycrypt
   labels:
     - "area: Crypto / RNG"
-
-"West project: TraceRecorderSource":
-  status: maintained
-  maintainers:
-    - eriktamlin
-  files:
-    - modules/TraceRecorder/
-  labels:
-    - "area: Tracing"
 
 "West project: trusted-firmware-m":
   status: maintained
@@ -3530,6 +3555,7 @@ Xtensa arch:
   collaborators:
     - andyross
     - nashif
+    - ceolin
   files:
     - arch/xtensa/
     - include/zephyr/arch/xtensa/

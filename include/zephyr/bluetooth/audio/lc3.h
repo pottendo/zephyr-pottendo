@@ -20,6 +20,7 @@
 
 #include <zephyr/sys/util_macro.h>
 #include <zephyr/bluetooth/byteorder.h>
+#include <zephyr/bluetooth/hci_types.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,7 +29,7 @@ extern "C" {
 /**
  *  @brief LC3 codec ID
  */
-#define BT_AUDIO_CODEC_LC3_ID 0x06
+#define BT_HCI_CODING_FORMAT_LC3 0x06
 
 /**
  * @brief Codec capability type id's
@@ -151,6 +152,13 @@ enum bt_audio_codec_capability_type {
 
 struct BT_AUDIO_CODEC_LC3_frame_len {
 	uint16_t min;
+	uint16_t max;
+};
+
+struct bt_audio_codec_octets_per_codec_frame {
+	/** Minimum number of octets supported per codec frame */
+	uint16_t min;
+	/** Maximum number of octets supported per codec frame */
 	uint16_t max;
 };
 
@@ -292,7 +300,7 @@ enum bt_audio_codec_config_type {
  */
 #define BT_AUDIO_CODEC_CAP_LC3(_freq, _duration, _chan_count, _len_min, _len_max,                  \
 			       _max_frames_per_sdu, _prefer_context)                               \
-	BT_AUDIO_CODEC_CAP(BT_AUDIO_CODEC_LC3_ID, 0x0000, 0x0000,                                  \
+	BT_AUDIO_CODEC_CAP(BT_HCI_CODING_FORMAT_LC3, 0x0000, 0x0000,                               \
 			   BT_AUDIO_CODEC_CAP_LC3_DATA(_freq, _duration, _chan_count, _len_min,    \
 						       _len_max, _max_frames_per_sdu),             \
 			   BT_AUDIO_CODEC_CAP_LC3_META(_prefer_context))
@@ -341,7 +349,7 @@ enum bt_audio_codec_config_type {
  */
 #define BT_AUDIO_CODEC_LC3_CONFIG(_freq, _duration, _loc, _len, _frames_per_sdu, _stream_context)  \
 	BT_AUDIO_CODEC_CFG(                                                                        \
-		BT_AUDIO_CODEC_LC3_ID, 0x0000, 0x0000,                                             \
+		BT_HCI_CODING_FORMAT_LC3, 0x0000, 0x0000,                                          \
 		BT_AUDIO_CODEC_CFG_LC3_DATA(_freq, _duration, _loc, _len, _frames_per_sdu),        \
 		BT_AUDIO_CODEC_CFG_LC3_META(_stream_context))
 

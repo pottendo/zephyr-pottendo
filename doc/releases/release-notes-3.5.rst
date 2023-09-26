@@ -13,6 +13,14 @@ The following sections provide detailed lists of changes by component.
 
 Security Vulnerability Related
 ******************************
+The following CVEs are addressed by this release:
+
+More detailed information can be found in:
+https://docs.zephyrproject.org/latest/security/vulnerabilities.html
+
+* CVE-2023-4258 `Zephyr project bug tracker GHSA-m34c-cp63-rwh7
+  <https://github.com/zephyrproject-rtos/zephyr/security/advisories/GHSA-m34c-cp63-rwh7>`_
+
 
 Kernel
 ******
@@ -21,6 +29,11 @@ Architectures
 *************
 
 * ARM
+
+  * Architectural support for Arm Cortex-M has been separated from Arm
+    Cortex-A and Cortex-R. This includes separate source modules to handle
+    tasks like IRQ management, exception handling, thread handling and swap.
+    For implementation details see :github:`60031`.
 
 * ARM
 
@@ -115,6 +128,14 @@ Build system and infrastructure
   be used to include a snippet when a test is ran (and exclude any boards from
   running that the snippet cannot be applied to).
 
+* Interrupts
+
+  * Added support for shared interrupts
+
+* Added support for setting MCUboot encryption key in sysbuild which is then
+  propagated to the bootloader and target images to automatically create
+  encrypted updates.
+
 Drivers and Sensors
 *******************
 
@@ -139,6 +160,8 @@ Drivers and Sensors
 * Disk
 
 * Display
+
+  * Added support for ST7735S (in ST7735R driver)
 
 * DMA
 
@@ -217,6 +240,12 @@ Drivers and Sensors
 
   * Added support for Nuvoton NuMaker M46x
 
+  * NS16550: Reworked how device initialization macros.
+
+    * CONFIG_UART_NS16550_ACCESS_IOPORT and CONFIG_UART_NS16550_SIMULT_ACCESS
+      are removed. For UART using IO port access, add "io-mapped" property to
+      device tree node.
+
 * SPI
 
   * Remove npcx spi driver implemented by Flash Interface Unit (FIU) module.
@@ -273,16 +302,6 @@ USB
 Devicetree
 **********
 
-* ``zephyr,memory-region-mpu`` was renamed ``zephyr,memory-attr``
-
-* The following macros were added:
-  :c:macro:`DT_FOREACH_NODE_VARGS`,
-  :c:macro:`DT_FOREACH_STATUS_OKAY_NODE_VARGS`
-  :c:macro:`DT_MEMORY_ATTR_FOREACH_NODE`
-  :c:macro:`DT_MEMORY_ATTR_APPLY`
-  :c:macro:`DT_MEM_FROM_FIXED_PARTITION`
-  :c:macro:`DT_FIXED_PARTITION_ADDR`
-
 Libraries / Subsystems
 **********************
 
@@ -327,6 +346,9 @@ Libraries / Subsystems
   * Added :kconfig:option:`CONFIG_MCUMGR_GRP_IMG_ALLOW_ERASE_PENDING` that allows
     to erase slots pending for next boot, that are not revert slots.
 
+  * Added ``user_data`` as an optional field to :c:struct:`mgmt_handler` when
+    :kconfig:option:`CONFIG_MCUMGR_MGMT_HANDLER_USER_DATA` is enabled.
+
 * File systems
 
   * Added support for ext2 file system.
@@ -344,6 +366,11 @@ HALs
 
 MCUboot
 *******
+
+  * Added :kconfig:option:`CONFIG_MCUBOOT_BOOTLOADER_NO_DOWNGRADE`
+    that allows to inform application that the on-board MCUboot has been configured
+    with downgrade  prevention enabled. This option is automatically selected for
+    DirectXIP mode and is available for both swap modes.
 
 Storage
 *******

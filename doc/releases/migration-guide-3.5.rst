@@ -34,6 +34,80 @@ Required changes
   SMP version 2 error code defines for in-tree modules have been updated to
   replace the ``*_RET_RC_*`` parts with ``*_ERR_*``.
 
+* ``zephyr,memory-region-mpu`` was renamed ``zephyr,memory-attr`` and its type
+  moved from 'enum' to 'int'. To have a seamless conversion this is the
+  required change in the DT:
+
+  .. code-block:: none
+
+     - "RAM"         -> <( DT_MEM_ARM(ATTR_MPU_RAM) )>
+     - "RAM_NOCACHE" -> <( DT_MEM_ARM(ATTR_MPU_RAM_NOCACHE) )>
+     - "FLASH"       -> <( DT_MEM_ARM(ATTR_MPU_FLASH) )>
+     - "PPB"         -> <( DT_MEM_ARM(ATTR_MPU_PPB) )>
+     - "IO"          -> <( DT_MEM_ARM(ATTR_MPU_IO) )>
+     - "EXTMEM"      -> <( DT_MEM_ARM(ATTR_MPU_EXTMEM) )>
+
+* A new networking Kconfig option :kconfig:option:`CONFIG_NET_INTERFACE_NAME`
+  defaults to ``y``. The option allows user to set a name to a network interface.
+  During system startup a default name is assigned to the network interface like
+  ``eth0`` to the first Ethernet network interface. The option affects the behavior
+  of ``SO_BINDTODEVICE`` BSD socket option. If the Kconfig option is set to ``n``,
+  which is how the system worked earlier, then the name of the device assigned
+  to the network interface is used by the ``SO_BINDTODEVICE`` socket option.
+  If the Kconfig option is set to ``y`` (current default), then the network
+  interface name is used by the ``SO_BINDTODEVICE`` socket option.
+
+* On all STM32 ADC, it is no longer possible to read sensor channels (Vref,
+  Vbat or temperature) using the ADC driver. The dedicated sensor driver should
+  be used instead. This change is due to a limitation on STM32F4 where the
+  channels for temperature and Vbat are identical, and the impossibility of
+  determining what we want to measure using solely the ADC API.
+
+* The default C library used on most targets has changed from the built-in
+  minimal C library to Picolibc. While both provide standard C library
+  interfaces and shouldn't cause any behavioral regressions for applications,
+  there are a few side effects to be aware of when migrating to Picolibc.
+
+  * Picolibc enables thread local storage
+    (:kconfig:option:`CONFIG_THREAD_LOCAL_STORAGE`) where supported. This
+    changes some internal operations within the kernel that improve
+    performance using some TLS variables. Zephyr places TLS variables in the
+    memory reserved for the stack, so stack usage for every thread will
+    increase by 8-16 bytes.
+
+  * Picolibc uses the same malloc implementation as the minimal C library, but
+    the default heap size depends on which C library is in use. When using the
+    minimal C library, the default heap is zero bytes, which means that malloc
+    will always fail. When using Picolibc, the default is 16kB with
+    :kconfig:option:`CONFIG_MMU` or :kconfig:option:`ARCH_POSIX`, 2kB with
+    :kconfig:option:`CONFIG_USERSPACE` and
+    :kconfig:option:`CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT`. For all
+    other targets, the default heap uses all remaining memory on the system.
+    You can change this by adjusting
+    :kconfig:option:`CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE`.
+
+  * Picolibc can either be built as part of the OS build or pulled from the
+    toolchain. When building as part of the OS, the build will increase by
+    approximately 1000 files.
+
+  * When using the standard C++ library with Picolibc, both of those must come
+    from the toolchain as the standard C++ library depends upon the C library
+    ABI.
+
+  * Picolibc removes the ``-ffreestanding`` compiler option. This allows
+    significant compiler optimization improvements, but also means that the
+    compiler will now warn about declarations of `main` which don't conform to
+    the Zephyr required type -- ``int main(void)``.
+
+  * Picolibc's default floating point input/output code is larger than the
+    minimal C library version (this is necessary to conform with the C
+    language "round trip" requirements for these operations). If you use
+    :kconfig:option:`CONFIG_CBPRINTF_FP_SUPPORT`, you will see increased
+    memory usage unless you also disable
+    :kconfig:option:`CONFIG_PICOLIBC_IO_FLOAT_EXACT`, which switches Picolibc
+    to a smaller, but inexact conversion algorithm. This requires building
+    Picolibc as a module.
+
 Recommended Changes
 *******************
 
@@ -42,3 +116,38 @@ Recommended Changes
   :kconfig:option:`CONFIG_GIC_V3` directly in Kconfig has been deprecated.
   The GIC version should now be specified by adding the appropriate compatible, for
   example :dtcompatible:`arm,gic-v2`, to the GIC node in the device tree.
+
+* Nordic nRF based boards using :kconfig:option:`CONFIG_NFCT_PINS_AS_GPIOS`
+  to configure NFCT pins as GPIOs, should instead set the new UICR
+  ``nfct-pins-as-gpios`` property in devicetree. It can be set like this in the
+  board devicetree files:
+
+  .. code-block:: devicetree
+
+     &uicr {
+         nfct-pins-as-gpios;
+     };
+
+* Nordic nRF based boards using :kconfig:option:`CONFIG_GPIO_AS_PINRESET`
+  to configure reset GPIO as nRESET, should instead set the new UICR
+  ``gpio-as-nreset`` property in devicetree. It can be set like this in the
+  board devicetree files:
+
+  .. code-block:: devicetree
+
+     &uicr {
+         gpio-as-nreset;
+     };
+
+* The :kconfig:option:`CONFIG_MODEM_GSM_PPP` modem driver is obsolete.
+  Instead the new :kconfig:option:`CONFIG_MODEM_CELLULAR` driver should be used.
+  As part of this :kconfig:option:`CONFIG_GSM_MUX` and :kconfig:option:`CONFIG_UART_MUX` are being
+  marked as deprecated as well. The new modem subsystem :kconfig:option:`CONFIG_MODEM_CMUX`
+  and :kconfig:option:`CONFIG_MODEM_PPP`` should be used instead.
+
+* Device drivers should now be restricted to ``PRE_KERNEL_1``, ``PRE_KERNEL_2``
+  and ``POST_KERNEL`` initialization levels. Other device initialization levels,
+  including ``EARLY``, ``APPLICATION``, and ``SMP``, have been deprecated and
+  will be removed in future releases. Note that these changes do not apply to
+  initialization levels used in the context of the ``init.h`` API,
+  e.g. :c:macro:`SYS_INIT`.

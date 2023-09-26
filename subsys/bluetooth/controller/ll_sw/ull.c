@@ -44,6 +44,7 @@
 #include "lll_sync_iso.h"
 #include "lll_iso_tx.h"
 #include "lll_conn.h"
+#include "lll_conn_iso.h"
 #include "lll_df.h"
 
 #include "ull_adv_types.h"
@@ -60,6 +61,7 @@
 #endif /* CONFIG_BT_CTLR_USER_EXT */
 
 #include "isoal.h"
+#include "ll_feat_internal.h"
 #include "ull_internal.h"
 #include "ull_iso_internal.h"
 #include "ull_adv_internal.h"
@@ -69,7 +71,6 @@
 #include "ull_central_internal.h"
 #include "ull_iso_types.h"
 #include "ull_conn_internal.h"
-#include "lll_conn_iso.h"
 #include "ull_conn_iso_types.h"
 #include "ull_central_iso_internal.h"
 #include "ull_llcp.h"
@@ -898,6 +899,10 @@ void ll_reset(void)
 	err = ull_df_reset();
 	LL_ASSERT(!err);
 #endif
+
+#if defined(CONFIG_BT_CTLR_SET_HOST_FEATURE)
+	ll_feat_reset();
+#endif /* CONFIG_BT_CTLR_SET_HOST_FEATURE */
 
 	/* clear static random address */
 	(void)ll_addr_set(1U, NULL);
@@ -2063,8 +2068,6 @@ void *ull_prepare_dequeue_iter(uint8_t *idx)
 
 void ull_prepare_dequeue(uint8_t caller_id)
 {
-	void *param_normal_head = NULL;
-	void *param_normal_next = NULL;
 	void *param_resume_head = NULL;
 	void *param_resume_next = NULL;
 	struct lll_event *next;
@@ -2105,41 +2108,31 @@ void ull_prepare_dequeue(uint8_t caller_id)
 			/* The prepare element was not a resume event, it would
 			 * use the radio or was enqueued back into prepare
 			 * pipeline with a preempt timeout being set.
-			 *
-			 * Remember the first encountered and the next element
-			 * in the prepare pipeline so that we do not infinitely
-			 * loop through the resume events in prepare pipeline.
 			 */
 			if (!is_resume) {
-				if (!param_normal_head) {
-					param_normal_head = param;
-				} else if (!param_normal_next) {
-					param_normal_next = param;
-				}
-			} else {
-				if (!param_resume_head) {
-					param_resume_head = param;
-				} else if (!param_resume_next) {
-					param_resume_next = param;
-				}
+				break;
+			}
+
+			/* Remember the first encountered resume and the next
+			 * resume element in the prepare pipeline so that we do
+			 * not infinitely loop through the resume events in
+			 * prepare pipeline.
+			 */
+			if (!param_resume_head) {
+				param_resume_head = param;
+			} else if (!param_resume_next) {
+				param_resume_next = param;
 			}
 
 			/* Stop traversing the prepare pipeline when we reach
-			 * back to the first or next event where we
+			 * back to the first or next resume event where we
 			 * initially started processing the prepare pipeline.
 			 */
-			if (!next->is_aborted &&
-			    ((!next->is_resume &&
-			      ((next->prepare_param.param ==
-				param_normal_head) ||
-			       (next->prepare_param.param ==
-				param_normal_next))) ||
-			     (next->is_resume &&
-			      !param_normal_next &&
-			      ((next->prepare_param.param ==
-				param_resume_head) ||
-			       (next->prepare_param.param ==
-				param_resume_next))))) {
+			if (next->is_resume &&
+			    ((next->prepare_param.param ==
+			      param_resume_head) ||
+			     (next->prepare_param.param ==
+			      param_resume_next))) {
 				break;
 			}
 		}
