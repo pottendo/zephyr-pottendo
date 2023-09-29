@@ -126,8 +126,8 @@ class mandel
         t |= val;
         canvas[cidx] = t;
 #ifdef __ZEPHYR__
-        volatile char *led= (char *)0xf0002000;
-        *led = ((*led) + 1);
+        //volatile char *led= (char *)0xf0002000;
+        //*led = ((*led) + 1);
 #endif        
         //sched_yield();
     }
@@ -337,10 +337,11 @@ class mandel
         {
             int ret;
 #ifdef __ZEPHYR__
+            // in recent Zephyr not needed enymore - even crashes soon!
             // needed to cleanup all resources, namely a mutex within a pthread
-            void *retval;
-            if ((ret = pthread_join(worker_tasks[i], &retval)) != 0)
-                log_msg("pthread_join failed: %d\n", ret);
+            //void *retval;
+            //if ((ret = pthread_join(worker_tasks[i], &retval)) != 0)
+            //    log_msg("pthread_join failed: %d\n", ret);
 #endif
             if ((ret = pthread_attr_destroy(&attr[i])) != 0)
                 log_msg("pthread_attr_destroy failed: %d\n", ret);

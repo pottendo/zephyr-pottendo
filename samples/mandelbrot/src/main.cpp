@@ -19,10 +19,6 @@
 // set this to enable direct output on C64 gfx mem.
 #define C64
 
-#ifdef C64
-#define NO_LOG
-#endif
-
 //#define NO_LOG
 #ifdef NO_LOG
 #define log_msg(...) 
