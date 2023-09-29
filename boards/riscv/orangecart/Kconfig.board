@@ -19,3 +19,8 @@ config BOARD_ORANGECART_SMP
 	bool "Board with LiteX/VexRiscV-SMP CPU"
 	depends on SOC_RISCV32_ORANGECART
 #	select RISCV_ISA_EXT_C
+
+config BOARD_ORANGECART2
+	bool "Board with LiteX/VexRiscV-SMP CPU"
+	depends on SOC_RISCV32_ORANGECART
+#	select RISCV_ISA_EXT_C

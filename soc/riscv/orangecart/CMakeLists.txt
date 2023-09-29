@@ -11,3 +11,4 @@ zephyr_sources(
 
 zephyr_sources_ifdef(CONFIG_BOARD_ORANGECART_SMP irq.c)
 zephyr_sources_ifdef(CONFIG_BOARD_ORANGECART_FPU irq.c)
+zephyr_sources_ifdef(CONFIG_BOARD_ORANGECART2 irq.c)

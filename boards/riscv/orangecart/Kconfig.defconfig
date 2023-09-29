@@ -69,4 +69,31 @@ config C64_MEMBASE
 	hex "memory address, where bitstream maps the C64 64k"
 	default 0x0f000000
 
+config RISCV_HAS_PLIC
+	default y
+	
 endif # BOARD_ORANGECART_SMP
+
+############################################## SC, no FPU vexriscv_smp cpu
+if BOARD_ORANGECART2
+config BOARD
+	default "orangecart2"
+
+config SPI
+	default y
+
+config FPU
+    bool "Support floating point operations"
+	default n
+
+config DISK_DRIVER_SDMMC
+        default y if DISK_DRIVERS
+
+config C64_MEMBASE
+	hex "memory address, where bitstream maps the C64 64k"
+	default 0x0f000000
+
+config RISCV_HAS_PLIC
+	default y
+	
+endif # BOARD_ORANGECART2

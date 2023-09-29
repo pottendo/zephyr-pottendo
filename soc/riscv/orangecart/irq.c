@@ -3,7 +3,7 @@
  */
 
 /* fixme: introduce proper SOC KConfig item */
-#if defined(CONFIG_BOARD_ORANGECART_SMP) || defined(CONFIG_BOARD_ORANGECART_FPU)
+#if defined(CONFIG_BOARD_ORANGECART_SMP) || defined(CONFIG_BOARD_ORANGECART_FPU) || defined(CONFIG_BOARD_ORANGECART2)
 #include <stdint.h>
 #include <zephyr/irq.h>
 //#include <zephyr/arch/riscv/arch.h>
