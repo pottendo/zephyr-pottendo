@@ -21,6 +21,8 @@ https://docs.zephyrproject.org/latest/security/vulnerabilities.html
 * CVE-2023-4258 `Zephyr project bug tracker GHSA-m34c-cp63-rwh7
   <https://github.com/zephyrproject-rtos/zephyr/security/advisories/GHSA-m34c-cp63-rwh7>`_
 
+* CVE-2023-5184 `Zephyr project bug tracker GHSA-8x3p-q3r5-xh9g
+  <https://github.com/zephyrproject-rtos/zephyr/security/advisories/GHSA-8x3p-q3r5-xh9g>`_
 
 Kernel
 ******
@@ -200,6 +202,23 @@ Drivers and Sensors
 
 * IEEE 802.15.4
 
+  * A new mandatory method attr_get() was introduced into ieee802154_radio_api.
+    Drivers need to implement at least
+    IEEE802154_ATTR_PHY_SUPPORTED_CHANNEL_PAGES and
+    IEEE802154_ATTR_PHY_SUPPORTED_CHANNEL_RANGES.
+  * The hardware capabilities IEEE802154_HW_2_4_GHZ and IEEE802154_HW_SUB_GHZ
+    were removed as they were not aligned with the standard and some already
+    existing drivers couldn't properly express their channel page and channel
+    range (notably SUN FSK and HRP UWB drivers). The capabilities were replaced
+    by the standard conforming new driver attribute
+    IEEE802154_ATTR_PHY_SUPPORTED_CHANNEL_PAGES that fits all in-tree drivers.
+  * The method get_subg_channel_count() was removed from ieee802154_radio_api.
+    This method could not properly express the channel range of existing drivers
+    (notably SUN FSK drivers that implement channel pages > 0 and may not have
+    zero-based channel ranges or UWB drivers that could not be represented at
+    all). The method was replaced by the new driver attribute
+    IEEE802154_ATTR_PHY_SUPPORTED_CHANNEL_RANGES that fits all in-tree drivers.
+
 * Interrupt Controller
 
   * GIC: Architecture version selection is now based on the device tree
@@ -231,6 +250,13 @@ Drivers and Sensors
 * Reset
 
   * Added support for Nuvoton NuMaker M46x
+
+* Retained memory
+
+  * Added support for allowing mutex support to be forcibly disabled with
+    :kconfig:option:`CONFIG_RETAINED_MEM_MUTEX_FORCE_DISABLE`.
+
+  * Fixed issue with user mode support not working.
 
 * SDHC
 
@@ -288,6 +314,7 @@ Networking
   * Added support for tickless mode. This removes the 500 ms timeout from the socket loop
     so the engine does not constantly wake up the CPU. This can be enabled by
     :kconfig:option:`CONFIG_LWM2M_TICKLESS`.
+  * Added new :c:macro:`LWM2M_RD_CLIENT_EVENT_DEREGISTER` event.
 
 * Wi-Fi
   * Added Passive scan support.
@@ -314,7 +341,7 @@ Libraries / Subsystems
 
   * MCUmgr SMP version 2 error translation (to legacy MCUmgr error code) is now
     supported in function handlers by setting ``mg_translate_error`` of
-    :c:struct:`mgmt_group` when registering a transport. See
+    :c:struct:`mgmt_group` when registering a group. See
     :c:type:`smp_translate_error_fn` for function details.
 
   * Fixed an issue with MCUmgr img_mgmt group whereby the size of the upload in
@@ -349,6 +376,15 @@ Libraries / Subsystems
   * Added ``user_data`` as an optional field to :c:struct:`mgmt_handler` when
     :kconfig:option:`CONFIG_MCUMGR_MGMT_HANDLER_USER_DATA` is enabled.
 
+  * Added optional ``force`` parameter to os mgmt reset command, this can be checked in the
+    :c:enum:`MGMT_EVT_OP_OS_MGMT_RESET` notification callback whose data structure is
+    :c:struct:`os_mgmt_reset_data`.
+
+  * Added configurable number of SMP encoding levels via
+    :kconfig:option:`CONFIG_MCUMGR_SMP_CBOR_MIN_ENCODING_LEVELS`, which automatically increments
+    minimum encoding levels for in-tree groups if :kconfig:option:`CONFIG_ZCBOR_CANONICAL` is
+    enabled.
+
 * File systems
 
   * Added support for ext2 file system.
@@ -356,6 +392,17 @@ Libraries / Subsystems
   * Added alignment parameter to FS_LITTLEFS_DECLARE_CUSTOM_CONFIG macro, it can speed up read/write
     operation for SDMMC devices in case when we align buffers on CONFIG_SDHC_BUFFER_ALIGNMENT,
     because we can avoid extra copy of data from card bffer to read/prog buffer.
+
+* Retention
+
+  * Added the :ref:`blinfo_api` subsystem.
+
+  * Added support for allowing mutex support to be forcibly disabled with
+    :kconfig:option:`CONFIG_RETENTION_MUTEX_FORCE_DISABLE`.
+
+* Binary descriptors
+
+  * Added the :ref:`binary_descriptors` (``bindesc``) subsystem.
 
 HALs
 ****
@@ -371,6 +418,68 @@ MCUboot
     that allows to inform application that the on-board MCUboot has been configured
     with downgrade  prevention enabled. This option is automatically selected for
     DirectXIP mode and is available for both swap modes.
+
+  * Added :kconfig:option:`CONFIG_MCUBOOT_BOOTLOADER_MODE_OVERWRITE_ONLY`
+    that allows to inform application that the on-board MCUboot will overwrite
+    the primary slot with secondary slot contents, without saving the original
+    image in primary slot.
+
+  * Fixed issue with serial recovery not showing image details for decrypted images.
+
+  * Fixed issue with serial recovery in single slot mode wrongly iterating over 2 image slots.
+
+  * Fixed an issue with boot_serial repeats not being processed when output was sent, this would
+    lead to a divergence of commands whereby later commands being sent would have the previous
+    command output sent instead.
+
+  * Fixed an issue with the boot_serial zcbor setup encoder function wrongly including the buffer
+    address in the size which caused serial recovery to fail on some platforms.
+
+  * Fixed wrongly building in optimize for debug mode by default, this saves a significant amount
+    of flash space.
+
+  * Fixed issue with serial recovery use of MBEDTLS having undefined operations which led to usage
+    faults when the secondary slot image was encrypted.
+
+  * Added error output when flash device fails to open and asserts are disabled, which will now
+    panic the bootloader.
+
+  * Added currently running slot ID and maximum application size to shared data function
+    definition.
+
+  * Added P384 and SHA384 support to imgtool.
+
+  * Added optional serial recovery image state and image set state commands.
+
+  * Added ``dumpinfo`` command for signed image parsing in imgtool.
+
+  * Added ``getpubhash`` command to dump the sha256 hash of the public key in imgtool.
+
+  * Added support for ``getpub`` to print the output to a file in imgtool.
+
+  * Added support for dumping the raw versions of the public keys in imgtool.
+
+  * Added support for sharing boot information with application via retention subsystem.
+
+  * Added support for serial recovery to read and handle encrypted seondary slot partitions.
+
+  * Removed ECDSA P224 support.
+
+  * Removed custom image list boot serial extension support.
+
+  * Reworked boot serial extensions so that they can be used by modules or from user repositories
+    by switching to iterable sections.
+
+  * Reworked image encryption support for Zephyr, static dummy key files are no longer in the code,
+    a pem file must be supplied to extract the private and public keys. The Kconfig menu has
+    changed to only show a single option for enabling encryption and selecting the key file.
+
+  * Reworked the ECDSA256 TLV curve agnostic and renamed it to ``ECDSA_SIG``.
+
+  * CDDL auto-generated function code has been replaced with zcbor function calls, this now allows
+    the parameters to be supplied in any order.
+
+  * The MCUboot version in this release is version ``2.0.0+0-rc1``.
 
 Storage
 *******

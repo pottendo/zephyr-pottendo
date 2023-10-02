@@ -34,6 +34,13 @@ Required changes
   SMP version 2 error code defines for in-tree modules have been updated to
   replace the ``*_RET_RC_*`` parts with ``*_ERR_*``.
 
+* MCUmgr SMP version 2 error translation (to legacy MCUmgr error code) is now
+  handled in function handlers by setting the ``mg_translate_error`` function
+  pointer of :c:struct:`mgmt_group` when registering a group. See
+  :c:type:`smp_translate_error_fn` for function details. Any SMP version 2
+  handlers made for Zephyr 3.4 need to be updated to include these translation
+  functions when the groups are registered.
+
 * ``zephyr,memory-region-mpu`` was renamed ``zephyr,memory-attr`` and its type
   moved from 'enum' to 'int'. To have a seamless conversion this is the
   required change in the DT:
@@ -108,6 +115,43 @@ Required changes
     to a smaller, but inexact conversion algorithm. This requires building
     Picolibc as a module.
 
+* The CAN controller timing API functions :c:func:`can_set_timing` and :c:func:`can_set_timing_data`
+  no longer fallback to the (Re-)Synchronization Jump Width (SJW) value set in the devicetree
+  properties for the given CAN controller upon encountering an SJW value corresponding to
+  ``CAN_SJW_NO_CHANGE`` (which is no longer available). The caller will therefore need to fill in
+  the ``sjw`` field in :c:struct:`can_timing`. To aid in this, the :c:func:`can_calc_timing` and
+  :c:func:`can_calc_timing_data` functions now automatically calculate a suitable SJW. The
+  calculated SJW can be overwritten by the caller if needed. The CAN controller API functions
+  :c:func:`can_set_bitrate` and :c:func:`can_set_bitrate_data` now also automatically calculate a
+  suitable SJW, but their SJW cannot be overwritten by the caller.
+
+* Ethernet PHY devicetree bindings were updated to use the standard ``reg``
+  property for the PHY address instead of a custom ``address`` property. As a
+  result, MDIO controller nodes now require ``#address-cells`` and
+  ``#size-cells`` properties. Similarly, Ethernet PHY devicetree nodes and
+  corresponding driver were updated to consistently use the node name
+  ``ethernet-phy`` instead of ``phy``. Devicetrees and overlays must be updated
+  accordingly:
+
+  .. code-block:: devicetree
+
+     mdio {
+         compatible = "mdio-controller";
+         #address-cells = <1>;
+         #size-cells = <0>;
+
+         ethernet-phy@0 {
+             compatible = "ethernet-phy";
+             reg = <0>;
+         };
+     };
+
+* The ``accept()`` callback's signature in :c:struct:`bt_l2cap_server` has
+  changed to ``int (*accept)(struct bt_conn *conn, struct bt_l2cap_server
+  *server, struct bt_l2cap_chan **chan)``,
+  adding a new ``server`` parameter pointing to the :c:struct:`bt_l2cap_server`
+  structure instance the callback relates to. :github:`60536`
+
 Recommended Changes
 *******************
 
@@ -151,3 +195,15 @@ Recommended Changes
   will be removed in future releases. Note that these changes do not apply to
   initialization levels used in the context of the ``init.h`` API,
   e.g. :c:macro:`SYS_INIT`.
+
+* The following CAN controller devicetree properties are now deprecated in favor specifying the
+  initial CAN bitrate using the ``bus-speed``, ``sample-point``, ``bus-speed-data``, and
+  ``sample-point-data`` properties:
+  * ``sjw``
+  * ``prop-seg``
+  * ``phase-seg1``
+  * ``phase-seg1``
+  * ``sjw-data``
+  * ``prop-seg-data``
+  * ``phase-seg1-data``
+  * ``phase-seg1-data``

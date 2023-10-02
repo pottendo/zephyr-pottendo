@@ -56,7 +56,7 @@
 			#size-cells = <0>;
 			vendor-id = <0x8086>;
 			device-id = <0x7a23>;
-			interrupts = <18 IRQ_TYPE_LOWEST_LEVEL_LOW 3>;
+			interrupts = <PCIE_IRQ_DETECT IRQ_TYPE_LOWEST_LEVEL_LOW 3>;
 			interrupt-parent = <&intc>;
 
 			status = "okay";
@@ -581,6 +581,14 @@
 			interrupt-parent = <&intc>;
 			alarms-count = <1>;
 
+			status = "okay";
+		};
+
+		tgpio: tgpio@fe001200 {
+			compatible = "intel,timeaware-gpio";
+			reg = <0xfe001200 0x100>;
+			timer-clock = <19200000>;
+			max-pins = <2>;
 			status = "okay";
 		};
 
