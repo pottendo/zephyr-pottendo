@@ -10,7 +10,8 @@
 volatile uint32_t confirm;
 using namespace std;
 
-c64 c64i(OC_SHM);
+//c64 c64i(OC_SHM);
+c64 c64i((uint8_t *)(CONFIG_C64_MEMBASE + 0xe0));    // for elite harmless
 oc_coproc co_proc(c64i);
 static int no_irqs = 0;
 pthread_t cr_th;
@@ -21,7 +22,8 @@ struct timespec tstart, tend, dt;
 
 void oc_isr(void *arg)
 {
-    switch (no_irqs++ % 4) 
+#if 0    
+    switch (no_irqs % 4) 
     {
     case 1:
         LED_R(64);
@@ -35,10 +37,12 @@ void oc_isr(void *arg)
     default:
         LED(0);
     }
+#endif
+    no_irqs++;
     OC_IRQCONFIRM();
     clock_gettime(CLOCK_REALTIME, &tstart);
     sem_post(&cr_sem);
-    LED_B(64);
+    //LED_B(64);
 }
 
 void timespec_diff(struct timespec *a, struct timespec *b, struct timespec *result)
@@ -71,7 +75,7 @@ void *cr_thread(void *arg)
         //pthread_mutex_lock(&mutex);
         if (co_proc.isr_req())
         {
-            OC_SHM[0x3f] = '\0';
+            //OC_SHM[0x3f] = '\0';
         }
         //pthread_mutex_unlock(&mutex);
     }
