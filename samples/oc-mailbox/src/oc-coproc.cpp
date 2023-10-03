@@ -109,8 +109,8 @@ oc_coproc::isr_req(void)
 		case 0xff:  // ignore exit
 		default: // some function success
 			//ctr_reg->cmd = CNOP;
-			//ctr_reg->res = 1;
-            //usleep(100 * 1000);
+			ctr_reg->res = 1;
+            //usleep(10);
 			break;
 		}
 	}
@@ -139,7 +139,7 @@ template<>
 int CoRoutine<cr_line_t>::_run(void)
 {
     show = SHOW;
-    printf("(%d,%d) -> (%d, %d), col = %d\n", p->x1, p->y1, p->x2, p->y2, p->c);
+    //printf("(%d,%d) -> (%d, %d), col = %d\n", p->x1, p->y1, p->x2, p->y2, p->c);
     return c64i.line(p->x1, p->y1, p->x2, p->y2, p->c);
 }
 
@@ -148,7 +148,7 @@ template<>
 int CoRoutine<cr_circle_t>::_run(void)
 {
     show = SHOW;
-    printf("%s: (%d,%d), r= %d, col = 0x%02x\n", __FUNCTION__, p->x1, p->y1, p->r, p->c);
+    //printf("%s: (%d,%d), r= %d, col = 0x%02x\n", __FUNCTION__, p->x1, p->y1, p->r, p->c);
     return c64i.circle(p->x1, p->y1, p->r, p->c);
 }
 

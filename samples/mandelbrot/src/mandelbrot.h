@@ -222,12 +222,14 @@ class mandel
     {
         tparam_t *p = static_cast<tparam_t *>(param);
         p->mo->mandel_wrapper_2(param);
+        pthread_exit(nullptr);
         return nullptr;
     }
 
     int mandel_wrapper_2(void *param)
     {
         tparam_t *p = (tparam_t *)param;
+
 #if defined(__ZEPHYR__) && defined(CONFIG_FPU)
 	// make sure FPU regs are saved during context switch
 	int r;
@@ -253,7 +255,6 @@ class mandel
         mandel_helper(p->xl, p->yl, p->xh, p->yh, p->incx, p->incy, p->xoffset, p->yoffset, p->width, p->height);
         log_msg("finished thread %d\n", p->tno);
         VSem(p->sem); // report we've done our job
-
         return 0;
     }
 
@@ -299,9 +300,11 @@ class mandel
                 if ((ret = pthread_create(&th, &attr[t], mandel_wrapper, tp[t])) != 0)
                     log_msg("pthread create failed for thread %d, %d\n", t, ret);
                 worker_tasks[t] = th;
+                ret = pthread_detach(th);
+                if (ret != 0)
+                    log_msg("pthread detach failed for thread %d, %d\n", t, ret);
+                //usleep(20*1000); // needed to make zephyr happy when loggin is enabled. Seems some race with the the KickOff mutex. Maybe some bug?
                 t++;
-                pthread_detach(th);
-                usleep(20*1000); // needed to make zephyr happy when loggin is enabled. Seems some race with the the KickOff mutex. Maybe some bug?
             }
         }
     }
