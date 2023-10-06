@@ -99,7 +99,7 @@ oc_coproc::isr_req(void)
     //hexdump(t, t, 0x3b);
     if (!oc_crs[ctr_reg->cmd]) {
         static int no = 0;
-		cout << "not assigned: " << ++no << '\n';
+		cout << "not assigned: " << ctr_reg->cmd << '\n';
         return 0;
 	} else {
 		switch (oc_crs[ctr_reg->cmd]->run()) {
@@ -109,8 +109,8 @@ oc_coproc::isr_req(void)
 		case 0xff:  // ignore exit
 		default: // some function success
 			//ctr_reg->cmd = CNOP;
-			ctr_reg->res = 1;
-            //usleep(10);
+			//ctr_reg->res = 1;
+            //usleep(1);
 			break;
 		}
 	}

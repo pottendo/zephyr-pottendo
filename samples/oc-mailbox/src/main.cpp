@@ -76,6 +76,7 @@ void *cr_thread(void *arg)
         if (co_proc.isr_req())
         {
             //OC_SHM[0x3f] = '\0';
+            TRIGGER_C64_ISR();
         }
         //pthread_mutex_unlock(&mutex);
     }
