@@ -102,6 +102,7 @@ oc_coproc::isr_req(void)
 		cout << "not assigned: " << ctr_reg->cmd << '\n';
         return 0;
 	} else {
+        CACHE_FLUSH();
 		switch (oc_crs[ctr_reg->cmd]->run()) {
 		case 0xfe:
             return 0;
