@@ -170,9 +170,9 @@ mailbox(void)
     int l = 1;
     while (true)
     {
-        cout << "waiting for ISR..." << l << ", irq-no# " << no_irqs << '\n';
+        //cout << "waiting for ISR..." << l << ", irq-no# " << no_irqs << '\n';
         l++;
-        usleep(1000 * 1000);
+        usleep(10000 * 1000); // sleep 10s
         //TRIGGER_C64_ISR();
         //circle_test();
         //line_test();

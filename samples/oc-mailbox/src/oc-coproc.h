@@ -102,6 +102,8 @@ typedef struct __attribute__((packed)) cr_cfg {
 
 typedef struct __attribute__((packed)) cr_test {
     coroutine_t reg;
+    uint16_t addr;
+    uint16_t len;
     char *test_pattern;
 } cr_test_t;
 

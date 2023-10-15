@@ -129,9 +129,12 @@ template<>
 int CoRoutine<cr_test_t>::_run(void)
 {
     show = SHOW;
+    int len = p->len;
+    int addr = p->addr;
+    printf("%s: addr = 0x%04x, len = 0x%02x\n", __FUNCTION__, addr, len);
     for (int i = 0; i < 7992; i++)
     {
-        c64i.get_mem()[0x04000 + i] = OC_SHM[i%0x3b];
+        c64i.get_mem()[0x04000 + i] = c64i.get_mem()[addr + (i % len)];
     }
     return 0x0;
 }
