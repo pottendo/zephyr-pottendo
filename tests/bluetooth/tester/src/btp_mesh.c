@@ -162,13 +162,132 @@ static int dfd_srv_send(struct bt_mesh_dfd_srv *srv,
 	return 0;
 }
 
+#ifdef CONFIG_BT_MESH_DFD_SRV_OOB_UPLOAD
+static struct {
+	uint8_t uri[CONFIG_BT_MESH_DFU_URI_MAXLEN];
+	uint8_t uri_len;
+	uint8_t fwid[CONFIG_BT_MESH_DFU_FWID_MAXLEN];
+	uint8_t fwid_len;
+	const struct bt_mesh_dfu_slot *slot;
+	uint8_t progress;
+	bool started;
+} dfd_srv_oob_ctx;
+
+static void oob_check_handler(struct k_work *work);
+static K_WORK_DEFINE(oob_check, oob_check_handler);
+static void oob_store_handler(struct k_work *work);
+static K_WORK_DEFINE(oob_store, oob_store_handler);
+
+static int dfd_srv_start_oob_upload(struct bt_mesh_dfd_srv *srv,
+				    const struct bt_mesh_dfu_slot *slot,
+				    const char *uri, uint8_t uri_len,
+				    const uint8_t *fwid, uint16_t fwid_len)
+{
+	LOG_DBG("Start OOB Upload");
+
+	memcpy(dfd_srv_oob_ctx.uri, uri, uri_len);
+	dfd_srv_oob_ctx.uri_len = uri_len;
+	memcpy(dfd_srv_oob_ctx.fwid, fwid, fwid_len);
+	dfd_srv_oob_ctx.fwid_len = fwid_len;
+	dfd_srv_oob_ctx.slot = slot;
+	dfd_srv_oob_ctx.progress = 0;
+	dfd_srv_oob_ctx.started = true;
+
+	k_work_submit(&oob_check);
+
+	return BT_MESH_DFD_SUCCESS;
+}
+
+static void dfd_srv_cancel_oob_upload(struct bt_mesh_dfd_srv *srv,
+				      const struct bt_mesh_dfu_slot *slot)
+{
+	LOG_DBG("Cancel OOB Upload");
+
+	dfd_srv_oob_ctx.started = false;
+}
+
+static uint8_t dfd_srv_oob_progress_get(struct bt_mesh_dfd_srv *srv,
+					const struct bt_mesh_dfu_slot *slot)
+{
+	uint8_t progress;
+
+	if (dfd_srv_oob_ctx.started) {
+		progress = dfd_srv_oob_ctx.progress;
+
+		dfd_srv_oob_ctx.progress = MIN(dfd_srv_oob_ctx.progress + 25, 99);
+
+		if (dfd_srv_oob_ctx.progress == 99) {
+			k_work_submit(&oob_store);
+		}
+	} else {
+		progress = 0;
+	}
+
+	LOG_DBG("OOB Progress Get (%sstarted: %d %%)", dfd_srv_oob_ctx.started ? "" : "not ",
+		progress);
+	return progress;
+}
+#endif /* CONFIG_BT_MESH_DFD_SRV_OOB_UPLOAD */
+
 static struct bt_mesh_dfd_srv_cb dfd_srv_cb = {
 	.recv = dfd_srv_recv,
 	.del = dfd_srv_del,
 	.send = dfd_srv_send,
+#ifdef CONFIG_BT_MESH_DFD_SRV_OOB_UPLOAD
+	.start_oob_upload = dfd_srv_start_oob_upload,
+	.cancel_oob_upload = dfd_srv_cancel_oob_upload,
+	.oob_progress_get = dfd_srv_oob_progress_get,
+#endif
 };
 
 static struct bt_mesh_dfd_srv dfd_srv = BT_MESH_DFD_SRV_INIT(&dfd_srv_cb);
+
+#ifdef CONFIG_BT_MESH_DFD_SRV_OOB_UPLOAD
+#define SUPPORTED_SCHEME "http"
+
+static void oob_check_handler(struct k_work *work)
+{
+	uint8_t scheme[10];
+	int i;
+	int status;
+	int err;
+
+	for (i = 0; i < MIN(dfd_srv_oob_ctx.uri_len, sizeof(scheme)); i++) {
+		if (IN_RANGE(dfd_srv_oob_ctx.uri[i], 48, 57) || /* DIGIT */
+		    IN_RANGE(dfd_srv_oob_ctx.uri[i], 65, 90) || /* ALPHA UPPER CASE */
+		    IN_RANGE(dfd_srv_oob_ctx.uri[i], 97, 122) || /* ALPHA LOWER CASE */
+		    dfd_srv_oob_ctx.uri[i] == '.' ||
+		    dfd_srv_oob_ctx.uri[i] == '+' ||
+		    dfd_srv_oob_ctx.uri[i] == '-') {
+			scheme[i] = dfd_srv_oob_ctx.uri[i];
+		} else {
+			break;
+		}
+	}
+
+	if (i == dfd_srv_oob_ctx.uri_len || dfd_srv_oob_ctx.uri[i] != ':') {
+		status = BT_MESH_DFD_ERR_URI_MALFORMED;
+	} else if (i != strlen(SUPPORTED_SCHEME) ||
+		   memcmp(scheme, SUPPORTED_SCHEME, strlen(SUPPORTED_SCHEME))) {
+		status = BT_MESH_DFD_ERR_URI_NOT_SUPPORTED;
+	} else {
+		status = BT_MESH_DFD_SUCCESS;
+	}
+
+	err = bt_mesh_dfd_srv_oob_check_complete(&dfd_srv, dfd_srv_oob_ctx.slot, status,
+						 dfd_srv_oob_ctx.fwid, dfd_srv_oob_ctx.fwid_len);
+	LOG_DBG("OOB check completed (err %d)", err);
+}
+
+static void oob_store_handler(struct k_work *work)
+{
+	int err;
+
+	err = bt_mesh_dfd_srv_oob_store_complete(&dfd_srv, dfd_srv_oob_ctx.slot, true,
+						 10000, "metadata", 8);
+	LOG_DBG("OOB store completed (err %d)", err);
+}
+#endif /* CONFIG_BT_MESH_DFD_SRV_OOB_UPLOAD */
 #endif
 
 #if defined(CONFIG_BT_MESH_BLOB_CLI) && !defined(CONFIG_BT_MESH_DFD_SRV)
@@ -1133,6 +1252,22 @@ static const struct bt_mesh_comp comp_alt = {
 	.vid = 2,
 };
 
+#if defined(CONFIG_BT_MESH_COMP_PAGE_2)
+static const uint8_t cmp2_elem_offset[1] = {0};
+
+static const struct bt_mesh_comp2_record comp_rec = {
+	.id = 0x1600,
+	.version.x = 1,
+	.version.y = 0,
+	.version.z = 0,
+	.elem_offset_cnt = 1,
+	.elem_offset = cmp2_elem_offset,
+	.data_len = 0
+};
+
+static const struct bt_mesh_comp2 comp_p2 = {.record_cnt = 1, .record = &comp_rec};
+#endif
+
 static struct bt_mesh_prov prov = {
 	.uuid = dev_uuid,
 	.static_val = static_auth,
@@ -1418,6 +1553,7 @@ static uint8_t ivu_toggle_state(const void *cmd, uint16_t cmd_len,
 	return BTP_STATUS_SUCCESS;
 }
 
+#if defined(CONFIG_BT_MESH_LOW_POWER)
 static uint8_t lpn(const void *cmd, uint16_t cmd_len,
 		   void *rsp, uint16_t *rsp_len)
 {
@@ -1449,6 +1585,7 @@ static uint8_t lpn_poll(const void *cmd, uint16_t cmd_len,
 
 	return BTP_STATUS_SUCCESS;
 }
+#endif /* CONFIG_BT_MESH_LOW_POWER */
 
 static uint8_t net_send(const void *cmd, uint16_t cmd_len,
 			void *rsp, uint16_t *rsp_len)
@@ -1630,6 +1767,7 @@ static uint8_t model_send(const void *cmd, uint16_t cmd_len,
 }
 
 #if defined(CONFIG_BT_TESTING)
+#if defined(CONFIG_BT_MESH_LOW_POWER)
 static uint8_t lpn_subscribe(const void *cmd, uint16_t cmd_len,
 			     void *rsp, uint16_t *rsp_len)
 {
@@ -1665,6 +1803,7 @@ static uint8_t lpn_unsubscribe(const void *cmd, uint16_t cmd_len,
 
 	return BTP_STATUS_SUCCESS;
 }
+#endif /* CONFIG_BT_MESH_LOW_POWER */
 
 static uint8_t rpl_clear(const void *cmd, uint16_t cmd_len,
 			 void *rsp, uint16_t *rsp_len)
@@ -1898,8 +2037,9 @@ static uint8_t composition_data_get(const void *cmd, uint16_t cmd_len,
 		return BTP_STATUS_FAILED;
 	}
 
-	memcpy(rp->data, comp->data, comp->len);
-	*rsp_len = comp->len;
+	rp->data[0] = page;
+	memcpy(rp->data + 1, comp->data, comp->len);
+	*rsp_len = comp->len + 1;
 
 	return BTP_STATUS_SUCCESS;
 }
@@ -4332,10 +4472,10 @@ static uint8_t blob_srv_recv(const void *cmd, uint16_t cmd_len,
 	struct model_data *model_bound;
 	int err;
 
-#if defined(CONFIG_BT_MESH_DFU_SRV)
-	struct bt_mesh_blob_srv *srv = &dfu_srv.blob;
-#elif defined(CONFIG_BT_MESH_DFD_SRV)
+#if defined(CONFIG_BT_MESH_DFD_SRV)
 	struct bt_mesh_blob_srv *srv = &dfd_srv.upload.blob;
+#elif defined(CONFIG_BT_MESH_DFU_SRV)
+	struct bt_mesh_blob_srv *srv = &dfu_srv.blob;
 #endif
 
 	model_bound = lookup_model_bound(BT_MESH_MODEL_ID_BLOB_SRV);
@@ -4443,6 +4583,7 @@ static const struct btp_handler handlers[] = {
 		.expect_len = 0,
 		.func = ivu_toggle_state,
 	},
+#if defined(CONFIG_BT_MESH_LOW_POWER)
 	{
 		.opcode = BTP_MESH_LPN,
 		.expect_len = sizeof(struct btp_mesh_lpn_set_cmd),
@@ -4453,6 +4594,7 @@ static const struct btp_handler handlers[] = {
 		.expect_len = 0,
 		.func = lpn_poll,
 	},
+#endif /* CONFIG_BT_MESH_LOW_POWER */
 	{
 		.opcode = BTP_MESH_NET_SEND,
 		.expect_len = BTP_HANDLER_LENGTH_VARIABLE,
@@ -4764,6 +4906,7 @@ static const struct btp_handler handlers[] = {
 		.func = va_del,
 	},
 #if defined(CONFIG_BT_TESTING)
+#if defined(CONFIG_BT_MESH_LOW_POWER)
 	{
 		.opcode = BTP_MESH_LPN_SUBSCRIBE,
 		.expect_len = sizeof(struct btp_mesh_lpn_subscribe_cmd),
@@ -4774,6 +4917,7 @@ static const struct btp_handler handlers[] = {
 		.expect_len = sizeof(struct btp_mesh_lpn_unsubscribe_cmd),
 		.func = lpn_unsubscribe,
 	},
+#endif /* CONFIG_BT_MESH_LOW_POWER */
 	{
 		.opcode = BTP_MESH_RPL_CLEAR,
 		.expect_len = 0,
@@ -4946,7 +5090,7 @@ static const struct btp_handler handlers[] = {
 		.func = srpl_clear
 	},
 #endif
-#if defined(CONFIG_BT_MESH_SOLICITATION)
+#if defined(CONFIG_BT_MESH_PROXY_SOLICITATION)
 	{
 		.opcode = BTP_MESH_PROXY_SOLICIT,
 		.expect_len = sizeof(struct btp_proxy_solicit_cmd),
@@ -5223,6 +5367,10 @@ uint8_t tester_init_mesh(void)
 	if (IS_ENABLED(CONFIG_BT_TESTING)) {
 		bt_test_cb_register(&bt_test_cb);
 	}
+
+#if defined(CONFIG_BT_MESH_COMP_PAGE_2)
+	bt_mesh_comp2_register(&comp_p2);
+#endif
 
 	tester_register_command_handlers(BTP_SERVICE_ID_MESH, handlers,
 					 ARRAY_SIZE(handlers));
