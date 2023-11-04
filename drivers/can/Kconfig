@@ -56,9 +56,9 @@ config CAN_STATS
 	  Enable CAN controller device statistics.
 
 config CAN_FD_MODE
-	bool "CAN-FD"
+	bool "CAN FD"
 	help
-	  Enable CAN-FD support. Not all CAN controllers support CAN-FD.
+	  Enable CAN FD support. Not all CAN controllers support CAN FD.
 
 config CAN_RX_TIMESTAMP
 	bool "Receiving timestamps"
@@ -92,6 +92,7 @@ source "drivers/can/Kconfig.mcux"
 source "drivers/can/Kconfig.mcp2515"
 source "drivers/can/Kconfig.mcan"
 source "drivers/can/Kconfig.rcar"
+source "drivers/can/Kconfig.numaker"
 source "drivers/can/Kconfig.loopback"
 source "drivers/can/Kconfig.native_posix_linux"
 source "drivers/can/Kconfig.sja1000"

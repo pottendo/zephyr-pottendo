@@ -352,6 +352,7 @@ lontium	Lontium Semiconductor Corporation
 loongson	Loongson Technology Corporation Limited
 lowrisc	lowRISC Community Interest Company
 lsi	LSI Corp. (LSI Logic)
+ltr	LiteOn OptoElectronics
 lwn	Liebherr-Werk Nenzing GmbH
 lxa	Linux Automation GmbH
 m5stack	M5Stack
@@ -608,6 +609,7 @@ tdo	Shangai Top Display Optoelectronics Co., Ltd
 technexion	TechNexion
 technologic	Technologic Systems
 telink	Telink Semiconductor
+telit	Telit Cinterion
 tempo	Tempo Semiconductor
 techstar	Shenzhen Techstar Electronics Co., Ltd.
 terasic	Terasic Inc.

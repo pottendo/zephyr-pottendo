@@ -201,7 +201,7 @@ config THREAD_CUSTOM_DATA
 config THREAD_USERSPACE_LOCAL_DATA
 	bool
 	depends on USERSPACE
-	default y if ERRNO && !ERRNO_IN_TLS
+	default y if ERRNO && !ERRNO_IN_TLS && !LIBC_ERRNO
 
 config DYNAMIC_THREAD
 	bool "Support for dynamic threads [EXPERIMENTAL]"
@@ -651,6 +651,7 @@ menu "Work Queue Options"
 config SYSTEM_WORKQUEUE_STACK_SIZE
 	int "System workqueue stack size"
 	default 4096 if COVERAGE_GCOV
+	default 2560 if WIFI_NM_WPA_SUPPLICANT
 	default 1024
 
 config SYSTEM_WORKQUEUE_PRIORITY
@@ -1192,6 +1193,19 @@ config KERNEL_COHERENCE
 	  Code that creates kernel data structures in uncached regions
 	  may fail strangely.  Some assertions exist to catch these
 	  mistakes, but not all circumstances can be tested.
+
+config TICKET_SPINLOCKS
+	bool "Ticket spinlocks for lock acquisition fairness [EXPERIMENTAL]"
+	select EXPERIMENTAL
+	help
+	  Basic spinlock implementation is based on single
+	  atomic variable and doesn't guarantee locking fairness
+	  across multiple CPUs. It's even possible that single CPU
+	  will win the contention every time which will result
+	  in a live-lock.
+	  Ticket spinlocks provide a FIFO order of lock acquisition
+	  which resolves such unfairness issue at the cost of slightly
+	  increased memory footprint.
 
 endmenu
 

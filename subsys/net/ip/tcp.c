@@ -1852,8 +1852,6 @@ static enum net_verdict tcp_recv(struct net_conn *net_conn,
 			goto in;
 		}
 
-		net_ipaddr_copy(&conn_old->context->remote, &conn->dst.sa);
-
 		conn->accepted_conn = conn_old;
 	}
  in:
@@ -2419,6 +2417,18 @@ static enum net_verdict tcp_in(struct tcp *conn, struct net_pkt *pkt)
 		net_stats_update_tcp_seg_rst(net_pkt_iface(pkt));
 		do_close = true;
 		close_status = -ECONNRESET;
+
+		/* If we receive RST and ACK for the sent SYN, it means
+		 * that there is no socket listening the port we are trying
+		 * to connect to. Set the errno properly in this case.
+		 */
+		if (conn->in_connect) {
+			fl = th_flags(th);
+			if (FL(&fl, ==, RST | ACK)) {
+				close_status = -ECONNREFUSED;
+			}
+		}
+
 		goto out;
 	}
 
@@ -2499,6 +2509,7 @@ next_state:
 			conn->send_options.mss_found = false;
 			conn_seq(conn, + 1);
 			next = TCP_SYN_SENT;
+			tcp_conn_ref(conn);
 		}
 		break;
 	case TCP_SYN_RECEIVED:
@@ -2532,8 +2543,40 @@ next_state:
 				break;
 			}
 
-			accept_cb(conn->context, &context->remote,
-				  sizeof(struct sockaddr), 0, context);
+			net_ipaddr_copy(&conn->context->remote, &conn->dst.sa);
+
+			/* Check if v4-mapping-to-v6 needs to be done for
+			 * the accepted socket.
+			 */
+			if (IS_ENABLED(CONFIG_NET_IPV4_MAPPING_TO_IPV6) &&
+			    net_context_get_family(conn->context) == AF_INET &&
+			    net_context_get_family(context) == AF_INET6 &&
+			    !net_context_is_v6only_set(context)) {
+				struct in6_addr mapped;
+
+				net_ipv6_addr_create_v4_mapped(
+					&net_sin(&conn->context->remote)->sin_addr,
+					&mapped);
+				net_ipaddr_copy(&net_sin6(&conn->context->remote)->sin6_addr,
+						&mapped);
+
+				net_sin6(&conn->context->remote)->sin6_family = AF_INET6;
+
+				NET_DBG("Setting v4 mapped address %s",
+					net_sprint_ipv6_addr(&mapped));
+
+				/* Note that we cannot set the local address to IPv6 one
+				 * as that is used to match the connection, and not just
+				 * for printing. The remote address is only used for
+				 * passing it to accept() and printing it by "net conn"
+				 * command.
+				 */
+			}
+
+			accept_cb(conn->context, &conn->context->remote,
+				  net_context_get_family(context) == AF_INET6 ?
+				  sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in),
+				  0, context);
 
 			next = TCP_ESTABLISHED;
 
@@ -2574,7 +2617,6 @@ next_state:
 			}
 
 			next = TCP_ESTABLISHED;
-			tcp_conn_ref(conn);
 			net_context_set_state(conn->context,
 					      NET_CONTEXT_CONNECTED);
 			tcp_ca_init(conn);
