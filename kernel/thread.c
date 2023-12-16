@@ -29,6 +29,7 @@
 #include <zephyr/random/random.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/llext/symbol.h>
 #include <zephyr/sys/iterable_sections.h>
 
 LOG_MODULE_DECLARE(os, CONFIG_KERNEL_LOG_LEVEL);
@@ -141,6 +142,7 @@ bool k_is_in_isr(void)
 {
 	return arch_is_in_isr();
 }
+EXPORT_SYMBOL(k_is_in_isr);
 
 /*
  * This function tags the current thread as essential to system operation.
@@ -311,15 +313,33 @@ static size_t copy_bytes(char *dest, size_t dest_size, const char *src, size_t s
 	return bytes_to_copy;
 }
 
+#define Z_STATE_STR_DUMMY       "dummy"
+#define Z_STATE_STR_PENDING     "pending"
+#define Z_STATE_STR_PRESTART    "prestart"
+#define Z_STATE_STR_DEAD        "dead"
+#define Z_STATE_STR_SUSPENDED   "suspended"
+#define Z_STATE_STR_ABORTING    "aborting"
+#define Z_STATE_STR_SUSPENDING  "suspending"
+#define Z_STATE_STR_QUEUED      "queued"
+
 const char *k_thread_state_str(k_tid_t thread_id, char *buf, size_t buf_size)
 {
 	size_t      off = 0;
 	uint8_t     bit;
 	uint8_t     thread_state = thread_id->base.thread_state;
-	static const char  *states_str[8] = {"dummy", "pending", "prestart",
-					     "dead", "suspended", "aborting",
-					     "", "queued"};
-	static const size_t states_sz[8] = {5, 7, 8, 4, 9, 8, 0, 6};
+	static const struct {
+		const char *str;
+		size_t      len;
+	} state_string[] = {
+		{ Z_STATE_STR_DUMMY, sizeof(Z_STATE_STR_DUMMY) - 1},
+		{ Z_STATE_STR_PENDING, sizeof(Z_STATE_STR_PENDING) - 1},
+		{ Z_STATE_STR_PRESTART, sizeof(Z_STATE_STR_PRESTART) - 1},
+		{ Z_STATE_STR_DEAD, sizeof(Z_STATE_STR_DEAD) - 1},
+		{ Z_STATE_STR_SUSPENDED, sizeof(Z_STATE_STR_SUSPENDED) - 1},
+		{ Z_STATE_STR_ABORTING, sizeof(Z_STATE_STR_ABORTING) - 1},
+		{ Z_STATE_STR_SUSPENDING, sizeof(Z_STATE_STR_SUSPENDING) - 1},
+		{ Z_STATE_STR_QUEUED, sizeof(Z_STATE_STR_QUEUED) - 1},
+	};
 
 	if ((buf == NULL) || (buf_size == 0)) {
 		return "";
@@ -333,14 +353,16 @@ const char *k_thread_state_str(k_tid_t thread_id, char *buf, size_t buf_size)
 	 * separate the descriptive strings with a '+'.
 	 */
 
-	for (uint8_t index = 0; thread_state != 0; index++) {
+
+	for (unsigned int index = 0; thread_state != 0; index++) {
 		bit = BIT(index);
 		if ((thread_state & bit) == 0) {
 			continue;
 		}
 
 		off += copy_bytes(buf + off, buf_size - off,
-				  states_str[index], states_sz[index]);
+				  state_string[index].str,
+				  state_string[index].len);
 
 		thread_state &= ~bit;
 
@@ -680,6 +702,10 @@ char *z_setup_new_thread(struct k_thread *new_thread,
 	new_thread->base.prio_deadline = 0;
 #endif
 	new_thread->resource_pool = _current->resource_pool;
+
+#ifdef CONFIG_SMP
+	z_waitq_init(&new_thread->halt_queue);
+#endif
 
 #ifdef CONFIG_SCHED_THREAD_USAGE
 	new_thread->base.usage = (struct k_cycle_stats) {};

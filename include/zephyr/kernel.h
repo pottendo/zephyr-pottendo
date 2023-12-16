@@ -58,12 +58,12 @@ BUILD_ASSERT(sizeof(intptr_t) == sizeof(long));
 #define K_LOWEST_APPLICATION_THREAD_PRIO (K_LOWEST_THREAD_PRIO - 1)
 
 #ifdef CONFIG_POLL
-#define _POLL_EVENT_OBJ_INIT(obj) \
+#define Z_POLL_EVENT_OBJ_INIT(obj) \
 	.poll_events = SYS_DLIST_STATIC_INIT(&obj.poll_events),
-#define _POLL_EVENT sys_dlist_t poll_events
+#define Z_DECL_POLL_EVENT sys_dlist_t poll_events;
 #else
-#define _POLL_EVENT_OBJ_INIT(obj)
-#define _POLL_EVENT
+#define Z_POLL_EVENT_OBJ_INIT(obj)
+#define Z_DECL_POLL_EVENT
 #endif
 
 struct k_thread;
@@ -171,7 +171,6 @@ void k_thread_foreach_unlocked(
  * */
 #define K_ESSENTIAL (BIT(0))
 
-#if defined(CONFIG_FPU_SHARING)
 /**
  * @brief FPU registers are managed by context switch
  *
@@ -183,7 +182,6 @@ void k_thread_foreach_unlocked(
  */
 #define K_FP_IDX 1
 #define K_FP_REGS (BIT(K_FP_IDX))
-#endif
 
 /**
  * @brief user mode thread
@@ -214,10 +212,6 @@ void k_thread_foreach_unlocked(
  */
 #define K_CALLBACK_STATE (BIT(4))
 
-#ifdef CONFIG_ARC
-/* ARC processor Bitmask definitions for threads user options */
-
-#if defined(CONFIG_ARC_DSP_SHARING)
 /**
  * @brief DSP registers are managed by context switch
  *
@@ -225,13 +219,11 @@ void k_thread_foreach_unlocked(
  * This option indicates that the thread uses the CPU's DSP registers.
  * This instructs the kernel to take additional steps to save and
  * restore the contents of these registers when scheduling the thread.
- * No effect if @kconfig{CONFIG_ARC_DSP_SHARING} is not enabled.
+ * No effect if @kconfig{CONFIG_DSP_SHARING} is not enabled.
  */
 #define K_DSP_IDX 6
-#define K_ARC_DSP_REGS (BIT(K_DSP_IDX))
-#endif
+#define K_DSP_REGS (BIT(K_DSP_IDX))
 
-#if defined(CONFIG_ARC_AGU_SHARING)
 /**
  * @brief AGU registers are managed by context switch
  *
@@ -241,14 +233,8 @@ void k_thread_foreach_unlocked(
  * No effect if @kconfig{CONFIG_ARC_AGU_SHARING} is not enabled.
  */
 #define K_AGU_IDX 7
-#define K_ARC_AGU_REGS (BIT(K_AGU_IDX))
-#endif
-#endif
+#define K_AGU_REGS (BIT(K_AGU_IDX))
 
-#ifdef CONFIG_X86
-/* x86 Bitmask definitions for threads user options */
-
-#if defined(CONFIG_FPU_SHARING) && defined(CONFIG_X86_SSE)
 /**
  * @brief FP and SSE registers are managed by context switch on x86
  *
@@ -259,8 +245,6 @@ void k_thread_foreach_unlocked(
  * the thread. No effect if @kconfig{CONFIG_X86_SSE} is not enabled.
  */
 #define K_SSE_REGS (BIT(7))
-#endif
-#endif
 
 /* end - thread options */
 
@@ -483,8 +467,9 @@ __syscall int k_thread_join(struct k_thread *thread, k_timeout_t timeout);
  *
  * @param timeout Desired duration of sleep.
  *
- * @return Zero if the requested time has elapsed or the number of milliseconds
- * left to sleep, if thread was woken up by \ref k_wakeup call.
+ * @return Zero if the requested time has elapsed or if the thread was woken up
+ * by the \ref k_wakeup call, the time left to sleep rounded up to the nearest
+ * millisecond.
  */
 __syscall int32_t k_sleep(k_timeout_t timeout);
 
@@ -495,8 +480,9 @@ __syscall int32_t k_sleep(k_timeout_t timeout);
  *
  * @param ms Number of milliseconds to sleep.
  *
- * @return Zero if the requested time has elapsed or the number of milliseconds
- * left to sleep, if thread was woken up by \ref k_wakeup call.
+ * @return Zero if the requested time has elapsed or if the thread was woken up
+ * by the \ref k_wakeup call, the time left to sleep rounded up to the nearest
+ * millisecond.
  */
 static inline int32_t k_msleep(int32_t ms)
 {
@@ -515,8 +501,9 @@ static inline int32_t k_msleep(int32_t ms)
  *
  * @param us Number of microseconds to sleep.
  *
- * @return Zero if the requested time has elapsed or the number of microseconds
- * left to sleep, if thread was woken up by \ref k_wakeup call.
+ * @return Zero if the requested time has elapsed or if the thread was woken up
+ * by the \ref k_wakeup call, the time left to sleep rounded up to the nearest
+ * microsecond.
  */
 __syscall int32_t k_usleep(int32_t us);
 
@@ -596,7 +583,8 @@ __syscall k_tid_t k_sched_current_thread_query(void);
 __attribute_const__
 static inline k_tid_t k_current_get(void)
 {
-#ifdef CONFIG_THREAD_LOCAL_STORAGE
+#ifdef CONFIG_CURRENT_THREAD_USE_TLS
+
 	/* Thread-local cache of current thread ID, set in z_thread_entry() */
 	extern __thread k_tid_t z_tls_current;
 
@@ -621,11 +609,7 @@ static inline k_tid_t k_current_get(void)
  * this is done via blocking the caller (in the same manner as
  * k_thread_join()), but in interrupt context on SMP systems the
  * implementation is required to spin for threads that are running on
- * other CPUs.  Note that as specified, this means that on SMP
- * platforms it is possible for application code to create a deadlock
- * condition by simultaneously aborting a cycle of threads using at
- * least one termination from interrupt context.  Zephyr cannot detect
- * all such conditions.
+ * other CPUs.
  *
  * @param thread ID of thread to abort.
  */
@@ -977,6 +961,11 @@ int k_thread_cpu_pin(k_tid_t thread, int cpu);
  * (e.g. k_sleep(), or a timeout argument to k_sem_take() et. al.)
  * will be canceled.  On resume, the thread will begin running
  * immediately and return from the blocked call.
+ *
+ * When the target thread is active on another CPU, the caller will block until
+ * the target thread is halted (suspended or aborted).  But if the caller is in
+ * an interrupt context, it will spin waiting for that target thread active on
+ * another CPU to halt.
  *
  * If @a thread is already suspended, the routine has no effect.
  *
@@ -1848,7 +1837,7 @@ struct k_queue {
 	struct k_spinlock lock;
 	_wait_q_t wait_q;
 
-	_POLL_EVENT;
+	Z_DECL_POLL_EVENT
 
 	SYS_PORT_TRACING_TRACKING_FIELD(k_queue)
 };
@@ -1862,7 +1851,7 @@ struct k_queue {
 	.data_q = SYS_SFLIST_STATIC_INIT(&obj.data_q), \
 	.lock = { }, \
 	.wait_q = Z_WAIT_Q_INIT(&obj.wait_q),	\
-	_POLL_EVENT_OBJ_INIT(obj)		\
+	Z_POLL_EVENT_OBJ_INIT(obj)		\
 	}
 
 /**
@@ -3110,7 +3099,7 @@ struct k_sem {
 	unsigned int count;
 	unsigned int limit;
 
-	_POLL_EVENT;
+	Z_DECL_POLL_EVENT
 
 	SYS_PORT_TRACING_TRACKING_FIELD(k_sem)
 
@@ -3124,7 +3113,7 @@ struct k_sem {
 	.wait_q = Z_WAIT_Q_INIT(&obj.wait_q), \
 	.count = initial_count, \
 	.limit = count_limit, \
-	_POLL_EVENT_OBJ_INIT(obj) \
+	Z_POLL_EVENT_OBJ_INIT(obj) \
 	}
 
 /**
@@ -4423,7 +4412,7 @@ struct k_msgq {
 	/** Number of used messages */
 	uint32_t used_msgs;
 
-	_POLL_EVENT;
+	Z_DECL_POLL_EVENT
 
 	/** Message queue */
 	uint8_t flags;
@@ -4449,7 +4438,7 @@ struct k_msgq {
 	.read_ptr = q_buffer, \
 	.write_ptr = q_buffer, \
 	.used_msgs = 0, \
-	_POLL_EVENT_OBJ_INIT(obj) \
+	Z_POLL_EVENT_OBJ_INIT(obj) \
 	}
 
 /**
@@ -4863,7 +4852,7 @@ struct k_pipe {
 		_wait_q_t      writers; /**< Writer wait queue */
 	} wait_q;			/** Wait queue */
 
-	_POLL_EVENT;
+	Z_DECL_POLL_EVENT
 
 	uint8_t	       flags;		/**< Flags */
 
@@ -4891,7 +4880,7 @@ struct k_pipe {
 		.readers = Z_WAIT_Q_INIT(&obj.wait_q.readers),       \
 		.writers = Z_WAIT_Q_INIT(&obj.wait_q.writers)        \
 	},                                                          \
-	_POLL_EVENT_OBJ_INIT(obj)                                   \
+	Z_POLL_EVENT_OBJ_INIT(obj)                                   \
 	.flags = 0,                                                 \
 	}
 
@@ -4979,7 +4968,7 @@ __syscall int k_pipe_alloc_init(struct k_pipe *pipe, size_t size);
  * @retval -EAGAIN Waiting period timed out; between zero and @a min_xfer
  *                 minus one data bytes were written.
  */
-__syscall int k_pipe_put(struct k_pipe *pipe, void *data,
+__syscall int k_pipe_put(struct k_pipe *pipe, const void *data,
 			 size_t bytes_to_write, size_t *bytes_written,
 			 size_t min_xfer, k_timeout_t timeout);
 
@@ -5976,6 +5965,12 @@ __syscall void k_str_out(char *c, size_t n);
 #endif
 
 /**
+ * @defgroup float_apis Floating Point APIs
+ * @ingroup kernel_apis
+ * @{
+ */
+
+/**
  * @brief Disable preservation of floating point context information.
  *
  * This routine informs the kernel that the specified thread
@@ -6036,6 +6031,10 @@ __syscall int k_float_disable(struct k_thread *thread);
  *         -EINVAL  If the floating point enabling could not be performed.
  */
 __syscall int k_float_enable(struct k_thread *thread, unsigned int options);
+
+/**
+ * @}
+ */
 
 /**
  * @brief Get the runtime statistics of a thread

@@ -155,6 +155,7 @@ ARM arch:
     - bbolen
     - povergoing
     - ithinuel
+    - sgrrzhf
   files:
     - arch/arm/
     - arch/arm/core/offsets/
@@ -184,6 +185,26 @@ ARM64 arch:
   labels:
     - "area: ARM64"
 
+ARM Platforms:
+  status: odd fixes
+  files:
+    - boards/arm/mps*/
+    - soc/arm/arm/
+    - boards/arm/v2m_*/
+  labels:
+    - "platform: ARM"
+
+ARM SiP SVC:
+  status: odd fixes
+  files:
+    - subsys/sip_svc/
+    - tests/subsys/sip_svc/
+    - include/zephyr/sip_svc/
+    - include/zephyr/drivers/sip_svc/
+    - drivers/sip_svc/
+  labels:
+    - "area: ARM SiP SVC"
+
 MIPS arch:
   status: odd fixes
   files:
@@ -201,6 +222,8 @@ Ambiq Platforms:
   collaborators:
     - tgorochowik
     - msobkowski
+    - aaronyegx
+    - RichardSWheatley
   files:
     - soc/arm/ambiq/
     - boards/arm/apollo*/
@@ -231,6 +254,7 @@ Binary Descriptors:
     - include/zephyr/bindesc.h
     - samples/subsys/bindesc/
     - scripts/west_commands/bindesc.py
+    - tests/subsys/bindesc/
   labels:
     - "area: Binary Descriptors"
 
@@ -413,6 +437,20 @@ Board/SoC configuration:
   labels:
     - "area: C++"
 
+Cache:
+  status: maintained
+  maintainers:
+    - carlocaione
+  collaborators:
+    - nashif
+  files:
+    - include/zephyr/drivers/cache.h
+    - include/zephyr/cache.h
+    - doc/hardware/cache/index.rst
+    - drivers/cache/
+  labels:
+    - "area: Cache"
+
 C library:
   status: maintained
   maintainers:
@@ -433,11 +471,11 @@ CMSIS API layer:
   collaborators:
     - nashif
   files:
-    - subsys/portability/cmsis_rtos_v*/
+    - subsys/portability/
     - include/zephyr/portability/cmsis*
     - samples/subsys/portability/cmsis_rtos_v*/
     - tests/subsys/portability/cmsis_rtos_v*/
-    - doc/services/portability/
+    - doc/services/portability/cmsis*
   labels:
     - "area: CMSIS API Layer"
     - "area: Portability"
@@ -523,6 +561,7 @@ Common Architecture Interface:
     - arch/common/
     - include/zephyr/arch/common/
     - tests/arch/common/
+    - doc/hardware/porting/arch.rst
   labels:
     - "area: Architectures"
 
@@ -550,7 +589,6 @@ Debug:
     - doc/services/debugging/
   labels:
     - "area: Debugging"
-
 
 Demand Paging:
   status: maintained
@@ -614,6 +652,7 @@ Devicetree Bindings:
     - galak
   files:
     - dts/bindings/
+    - include/zephyr/dt-bindings/
   labels:
     - "area: Devicetree Binding"
 
@@ -803,6 +842,20 @@ Release Notes:
     - tests/subsys/canbus/
   labels:
     - "area: CAN"
+
+"Drivers: Charger":
+  status: maintained
+  maintainers:
+    - aaronemassey
+    - rriveramcrus
+  files:
+    - drivers/charger/
+    - dts/bindings/charger/
+    - include/zephyr/drivers/charger.h
+    - tests/drivers/charger/
+    - doc/hardware/peripherals/charger.rst
+  labels:
+    - "area: Charger"
 
 "Drivers: Clock control":
   status: maintained
@@ -1050,6 +1103,8 @@ Release Notes:
     - doc/hardware/peripherals/gnss.rst
     - drivers/gnss/
     - include/zephyr/drivers/gnss.h
+    - include/zephyr/drivers/gnss/
+    - tests/drivers/build_all/gnss/
     - tests/drivers/gnss/
   labels:
     - "area: GNSS"
@@ -1165,7 +1220,6 @@ Release Notes:
     - include/zephyr/drivers/kscan.h
     - samples/drivers/espi/
     - samples/drivers/kscan/
-    - samples/drivers/kscan_touch/
     - tests/drivers/kscan/
     - tests/drivers/espi/
     - dts/bindings/kscan/
@@ -1226,7 +1280,7 @@ Release Notes:
     - dts/bindings/modem/
     - include/zephyr/drivers/modem/
   labels:
-    - "area: Modem"
+    - "area: Modem Drivers"
 
 "Drivers: Regulators":
   status: maintained
@@ -1255,6 +1309,7 @@ Release Notes:
     - dts/bindings/retained_mem/
     - include/zephyr/drivers/retained_mem.h
     - tests/drivers/retained_mem/
+    - doc/hardware/peripherals/retained_mem.rst
   labels:
     - "area: Retained Memory"
 
@@ -1551,7 +1606,7 @@ Release Notes:
 EC Host Commands:
   status: maintained
   maintainers:
-    - semihalf-niedzwiecki-dawid
+    - niedzwiecki-dawid
   files:
     - subsys/mgmt/ec_host_cmd/
     - include/zephyr/mgmt/ec_host_cmd/
@@ -1703,6 +1758,8 @@ Kconfig:
     - scripts/kconfig/
     - doc/build/kconfig/
     - Kconfig.zephyr
+    - tests/kconfig/configdefault/
+    - tests/misc/kconfigoptions/
   labels:
     - "area: Kconfig"
   description: >-
@@ -1752,6 +1809,9 @@ Base OS:
     - lib/os/cbprintf*
     - lib/os/Kconfig.cbprintf
     - include/zephyr/sys/mem_manage.h
+    - include/zephyr/sys/mpsc_pbuf.h
+    - include/zephyr/sys/mpsc_packet.h
+    - lib/os/mpsc_pbuf.c
   labels:
     - "area: Base OS"
 
@@ -1790,11 +1850,17 @@ Logging:
     - dcpleung
   files:
     - include/zephyr/logging/
+    - include/zephyr/sys/mpsc_pbuf.h
+    - include/zephyr/sys/mpsc_packet.h
+    - lib/os/mpsc_pbuf.c
+    - doc/kernel/data_structures/mpsc_pbuf.rst
+    - tests/lib/mpsc_pbuf/
     - samples/subsys/logging/
     - subsys/logging/
     - tests/subsys/logging/
     - scripts/logging/
     - doc/services/logging/
+    - tests/lib/spsc_pbuf/
   labels:
     - "area: Logging"
 
@@ -1883,6 +1949,8 @@ Modem Modules:
     - tests/subsys/modem/
     - doc/services/modem/
     - samples/net/cellular_modem/
+  labels:
+    - "area: Modem"
 
 OSDP:
   status: maintained
@@ -1927,6 +1995,7 @@ Native POSIX/Sim and POSIX arch:
     - aescolar
   files:
     - arch/posix/
+    - boards/posix/common/
     - boards/posix/native_*/
     - boards/posix/doc/
     - boards/posix/*.rst
@@ -1939,7 +2008,7 @@ Native POSIX/Sim and POSIX arch:
     - scripts/native_simulator/
     - scripts/valgrind.supp
     - soc/posix/
-    - tests/boards/native_posix/
+    - tests/boards/native_sim/
   labels:
     - "area: native port"
   description: >-
@@ -1967,10 +2036,12 @@ Networking:
     - include/zephyr/net/gptp.h
     - include/zephyr/net/ieee802154*.h
     - include/zephyr/net/wifi*.h
+    - include/zephyr/net/buf.h
     - samples/net/gptp/
     - samples/net/sockets/coap_*/
     - samples/net/lwm2m_client/
     - samples/net/wifi/
+    - subsys/net/buf*.c
     - subsys/net/l2/ethernet/gptp/
     - subsys/net/l2/ieee802154/
     - subsys/net/l2/wifi/
@@ -2005,10 +2076,10 @@ Networking:
     - jukkar
   files:
     - include/zephyr/net/buf.h
-    - subsys/net/buf.c
+    - subsys/net/buf*.c
     - tests/net/buf/
   labels:
-    - "area: Networking"
+    - "area: Networking Buffers"
 
 "Networking: Connection Manager":
   status: maintained
@@ -2118,6 +2189,7 @@ Networking:
     - canisLupus1313
     - mariuszpos
     - edmont
+    - maciejbaczmanski
   files:
     - subsys/net/l2/openthread/
     - samples/net/openthread/
@@ -2149,6 +2221,8 @@ NIOS-2 arch:
     - nashif
   files:
     - arch/nios2/
+    - boards/common/nios2.board.cmake
+    - boards/nios2/
     - soc/nios2/
     - include/zephyr/arch/nios2/
     - tests/boards/altera_max10/
@@ -2179,6 +2253,7 @@ POSIX API layer:
     - tests/posix/
     - samples/posix/
     - tests/lib/fdtable/
+    - doc/services/portability/posix/
   labels:
     - "area: POSIX"
 
@@ -2212,6 +2287,7 @@ RISCV arch:
     - katsuster
     - edersondisouza
     - carlocaione
+    - npitre
   files:
     - arch/riscv/
     - boards/riscv/
@@ -2221,6 +2297,7 @@ RISCV arch:
     - soc/riscv/
     - tests/arch/riscv/
     - doc/hardware/arch/risc-v.rst
+    - drivers/interrupt_controller/intc_plic.c
   labels:
     - "area: RISCV"
 
@@ -2265,6 +2342,14 @@ Sensor Subsystem:
   labels:
     - "area: Sensor Subsystem"
 
+Stats:
+  status: odd fixes
+  files:
+    - subsys/stats/
+    - include/zephyr/stats/stats.h
+  labels:
+    - "area: Stats"
+
 Twister:
   status: maintained
   maintainers:
@@ -2285,6 +2370,7 @@ Twister:
     - doc/develop/test/twister.rst
     - scripts/pylib/pytest-twister-harness/
     - doc/develop/test/pytest.rst
+    - tests/test_config.yaml
   labels:
     - "area: Twister"
 
@@ -2423,8 +2509,8 @@ Nuvoton NPCX Platforms:
     - MulinChao
     - ChiHuaL
   collaborators:
-    - MulinChao
-    - ChiHuaL
+    - TomChang19
+    - alvsun
     - sjg20
     - keith-zephyr
     - jackrosenthal
@@ -2530,6 +2616,7 @@ Intel Platforms (Xtensa):
     - tests/boards/intel_adsp/
     - samples/boards/intel_adsp/
     - dts/bindings/*/intel,adsp*
+    - scripts/west_commands/runners/intel_adsp.py
   labels:
     - "platform: Intel ADSP"
 
@@ -2555,7 +2642,7 @@ Intel Platforms (Agilex):
     - gdengi
   collaborators:
     - nbalabak
-    - chongteikheng
+    - teikheng
   files:
     - boards/arm64/intel_*/
     - soc/arm64/intel_*/
@@ -2600,6 +2687,7 @@ NXP Platforms:
     - dts/arm/nxp/
     - dts/bindings/*/nxp*
     - soc/xtensa/nxp_adsp/
+    - boards/xtensa/nxp_adsp_*/
     - samples/boards/nxp*/
     - include/zephyr/dt-bindings/*/nxp*
     - include/zephyr/drivers/*/*nxp*
@@ -2719,7 +2807,7 @@ STM32 Platforms:
     - drivers/*/*stm32*.c
     - drivers/*/*stm32*.h
     - drivers/*/*/*stm32*
-    - drivers/*/*stm32
+    - drivers/*/*stm32*
     - dts/arm/st/
     - dts/bindings/*/*stm32*
     - soc/arm/st_stm32/
@@ -2780,7 +2868,6 @@ TI SimpleLink Platforms:
     - vaishnavachath
   collaborators:
     - vanti
-    - cfriedt
   files:
     - boards/arm/cc13*/
     - boards/arm/cc26*/
@@ -2901,6 +2988,18 @@ Task Watchdog:
   labels:
     - "area: Task Watchdog"
 
+"Drivers: Time Aware GPIO":
+  status: maintained
+  maintainers:
+    - akanisetti
+  files:
+    - doc/hardware/peripherals/tgpio.rst
+    - drivers/misc/timeaware_gpio/
+    - include/zephyr/drivers/misc/timeaware_gpio/
+    - samples/drivers/misc/timeaware_gpio/
+  labels:
+    - "area: Time Aware GPIO"
+
 TF-M Integration:
   status: maintained
   maintainers:
@@ -2927,6 +3026,7 @@ TF-M Integration:
     - cmake/linker/
     - cmake/toolchain/
     - include/zephyr/toolchain/
+    - include/zephyr/toolchain.h
   labels:
     - "area: Toolchains"
 
@@ -3026,6 +3126,7 @@ Userspace:
   collaborators:
     - ceolin
   files:
+    - include/zephyr/internal/syscall_handler.h
     - doc/kernel/usermode/kernelobjects.rst
     - include/zephyr/app_memory/
     - include/zephyr/linker/app_smem*.ld
@@ -3040,6 +3141,9 @@ Userspace:
     - scripts/build/gen_relocate_app.py
     - include/zephyr/sys/kobject.h
     - include/zephyr/sys/mem_manage.h
+    - include/zephyr/kernel/mm.h
+    - include/zephyr/kernel/internal/mm.h
+    - include/zephyr/kernel/mm/demand_paging.h
   labels:
     - "area: Userspace"
 
@@ -3076,6 +3180,8 @@ West:
   maintainers:
     - najumon1980
     - jhedberg
+  collaborators:
+    - tbursztyka
   files:
     - modules/acpica/
   labels:
@@ -3096,6 +3202,7 @@ West:
     - yperess
   files:
     - samples/modules/chre/
+    - modules/Kconfig.chre
   labels:
     - "area: CHRE"
 
@@ -3107,7 +3214,7 @@ West:
     - microbuilder
     - povergoing
   files:
-    - modules/cmsis/Kconfig
+    - modules/cmsis/
   labels:
     - "area: ARM"
 
@@ -3169,7 +3276,10 @@ West:
   collaborators:
     - tgorochowik
     - msobkowski
-  files: []
+    - aaronyegx
+    - RichardSWheatley
+  files:
+    - modules/hal_ambiq/
   labels:
     - "platform: Ambiq"
 
@@ -3381,8 +3491,6 @@ West:
   status: maintained
   maintainers:
     - vaishnavachath
-  collaborators:
-    - cfriedt
   files: []
   labels:
     - "platform: TI"
@@ -3563,6 +3671,7 @@ West:
     - canisLupus1313
     - mariuszpos
     - edmont
+    - maciejbaczmanski
   files:
     - modules/openthread/
   labels:
@@ -3866,6 +3975,7 @@ zbus:
     - teburd
   collaborators:
     - lyakh
+    - pillo79
   files:
     - samples/subsys/llext/
     - include/zephyr/llext/

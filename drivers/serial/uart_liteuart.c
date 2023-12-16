@@ -281,8 +281,10 @@ static void liteuart_uart_irq_handler(const struct device *dev)
 		data->callback(dev, data->cb_data);
 	}
 
+	/* Clear RX events, TX events still needed to enqueue the next transfer */
+	litex_write8(UART_EV_RX, UART_EV_PENDING_ADDR);
 	/* clear events */
-	litex_write8(UART_EV_TX | UART_EV_RX, config->ev_pending_addr);
+	//litex_write8(UART_EV_TX | UART_EV_RX, config->ev_pending_addr);
 
 	irq_unlock(key);
 }
