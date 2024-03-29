@@ -9,6 +9,7 @@ config SPI_MCUX_LPSPI
 	depends on DT_HAS_NXP_IMX_LPSPI_ENABLED
 	depends on CLOCK_CONTROL
 	select PINCTRL
+	select MFD if DT_HAS_NXP_LP_FLEXCOMM_ENABLED
 	help
 	  Enable support for mcux spi driver.
 
@@ -22,7 +23,7 @@ config SPI_MCUX_LPSPI_DMA
 
 if SPI_RTIO
 config SPI_MCUX_RTIO_SQ_SIZE
-	int "number of avialable submission queue entries"
+	int "number of available submission queue entries"
 	default 8 # sensible default that covers most common spi transactions
 	help
 	  when rtio is use with spi each driver holds a context with which blocking

@@ -5,7 +5,6 @@
  *
  */
 
-#include "zephyr/sys/__assert.h"
 #include <zephyr/sys/util.h>
 #include <zephyr/llext/elf.h>
 #include <zephyr/llext/loader.h>
@@ -17,6 +16,13 @@
 LOG_MODULE_REGISTER(llext, CONFIG_LLEXT_LOG_LEVEL);
 
 #include <string.h>
+
+#ifdef CONFIG_MMU_PAGE_SIZE
+#define LLEXT_PAGE_SIZE CONFIG_MMU_PAGE_SIZE
+#else
+/* Arm's MPU wants a 32 byte minimum mpu region */
+#define LLEXT_PAGE_SIZE 32
+#endif
 
 K_HEAP_DEFINE(llext_heap, CONFIG_LLEXT_HEAP_SIZE * 1024);
 
@@ -141,24 +147,24 @@ static int llext_find_tables(struct llext_loader *ldr)
 	     i++, pos += ldr->hdr.e_shentsize) {
 		ret = llext_seek(ldr, pos);
 		if (ret != 0) {
-			LOG_ERR("failed seeking to position %u\n", pos);
+			LOG_ERR("failed seeking to position %zu\n", pos);
 			return ret;
 		}
 
 		ret = llext_read(ldr, &shdr, sizeof(elf_shdr_t));
 		if (ret != 0) {
-			LOG_ERR("failed reading section header at position %u\n", pos);
+			LOG_ERR("failed reading section header at position %zu\n", pos);
 			return ret;
 		}
 
-		LOG_DBG("section %d at %x: name %d, type %d, flags %x, addr %x, size %d",
+		LOG_DBG("section %d at %zx: name %d, type %d, flags %zx, addr %zx, size %zd",
 			i,
-			ldr->hdr.e_shoff + i * ldr->hdr.e_shentsize,
+			(size_t)ldr->hdr.e_shoff + i * ldr->hdr.e_shentsize,
 			shdr.sh_name,
 			shdr.sh_type,
-			shdr.sh_flags,
-			shdr.sh_addr,
-			shdr.sh_size);
+			(size_t)shdr.sh_flags,
+			(size_t)shdr.sh_addr,
+			(size_t)shdr.sh_size);
 
 		switch (shdr.sh_type) {
 		case SHT_SYMTAB:
@@ -252,6 +258,38 @@ static int llext_map_sections(struct llext_loader *ldr, struct llext *ext)
 	return 0;
 }
 
+/*
+ * Initialize the memory partition associated with the extension memory
+ */
+static void llext_init_mem_part(struct llext *ext, enum llext_mem mem_idx,
+			uintptr_t start, size_t len)
+{
+#ifdef CONFIG_USERSPACE
+	if (mem_idx < LLEXT_MEM_PARTITIONS) {
+		ext->mem_parts[mem_idx].start = start;
+		ext->mem_parts[mem_idx].size = len;
+
+		switch (mem_idx) {
+		case LLEXT_MEM_TEXT:
+			ext->mem_parts[mem_idx].attr = K_MEM_PARTITION_P_RX_U_RX;
+			break;
+		case LLEXT_MEM_DATA:
+		case LLEXT_MEM_BSS:
+			ext->mem_parts[mem_idx].attr = K_MEM_PARTITION_P_RW_U_RW;
+			break;
+		case LLEXT_MEM_RODATA:
+			ext->mem_parts[mem_idx].attr = K_MEM_PARTITION_P_RO_U_RO;
+			break;
+		default:
+			break;
+		}
+		LOG_DBG("mem partition %d start 0x%lx, size %d", mem_idx,
+			ext->mem_parts[mem_idx].start,
+			ext->mem_parts[mem_idx].size);
+	}
+#endif
+}
+
 static int llext_copy_section(struct llext_loader *ldr, struct llext *ext,
 			      enum llext_mem mem_idx)
 {
@@ -266,18 +304,41 @@ static int llext_copy_section(struct llext_loader *ldr, struct llext *ext,
 	    IS_ENABLED(CONFIG_LLEXT_STORAGE_WRITABLE)) {
 		ext->mem[mem_idx] = llext_peek(ldr, ldr->sects[mem_idx].sh_offset);
 		if (ext->mem[mem_idx]) {
+			llext_init_mem_part(ext, mem_idx, (uintptr_t)ext->mem[mem_idx],
+				ldr->sects[mem_idx].sh_size);
 			ext->mem_on_heap[mem_idx] = false;
 			return 0;
 		}
 	}
 
-	ext->mem[mem_idx] = k_heap_aligned_alloc(&llext_heap, sizeof(uintptr_t),
-						 ldr->sects[mem_idx].sh_size,
+	/* On ARM with an MPU a pow(2, N)*32 sized and aligned region is needed,
+	 * otherwise its typically an mmu page (sized and aligned memory region)
+	 * we are after that we can assign memory permission bits on.
+	 */
+#ifndef CONFIG_ARM_MPU
+	const uintptr_t sect_alloc = ROUND_UP(ldr->sects[mem_idx].sh_size, LLEXT_PAGE_SIZE);
+	const uintptr_t sect_align = LLEXT_PAGE_SIZE;
+#else
+	uintptr_t sect_alloc = LLEXT_PAGE_SIZE;
+
+	while (sect_alloc < ldr->sects[mem_idx].sh_size) {
+		sect_alloc *= 2;
+	}
+	uintptr_t sect_align = sect_alloc;
+#endif
+
+	ext->mem[mem_idx] = k_heap_aligned_alloc(&llext_heap, sect_align,
+						 sect_alloc,
 						 K_NO_WAIT);
+
 	if (!ext->mem[mem_idx]) {
 		return -ENOMEM;
 	}
-	ext->alloc_size += ldr->sects[mem_idx].sh_size;
+
+	ext->alloc_size += sect_alloc;
+
+	llext_init_mem_part(ext, mem_idx, (uintptr_t)ext->mem[mem_idx],
+		sect_alloc);
 
 	if (ldr->sects[mem_idx].sh_type == SHT_NOBITS) {
 		memset(ext->mem[mem_idx], 0, ldr->sects[mem_idx].sh_size);
@@ -509,9 +570,9 @@ static void llext_link_plt(struct llext_loader *ldr, struct llext *ext,
 	 */
 	uint8_t *text = ext->mem[LLEXT_MEM_TEXT];
 
-	LOG_DBG("Found %p in PLT %u size %u cnt %u text %p",
+	LOG_DBG("Found %p in PLT %u size %zu cnt %u text %p",
 		(void *)llext_string(ldr, ext, LLEXT_MEM_SHSTRTAB, shdr->sh_name),
-		shdr->sh_type, shdr->sh_entsize, sh_cnt, (void *)text);
+		shdr->sh_type, (size_t)shdr->sh_entsize, sh_cnt, (void *)text);
 
 	const elf_shdr_t *sym_shdr = ldr->sects + LLEXT_MEM_SYMTAB;
 	unsigned int sym_cnt = sym_shdr->sh_size / sym_shdr->sh_entsize;
@@ -593,9 +654,9 @@ static void llext_link_plt(struct llext_loader *ldr, struct llext *ext,
 			}
 		}
 
-		LOG_DBG("symbol %s offset %#x r-offset %#x .text offset %#x stb %u",
+		LOG_DBG("symbol %s offset %#zx r-offset %#zx .text offset %#zx stb %u",
 			name, got_offset,
-			rela.r_offset, ldr->sects[LLEXT_MEM_TEXT].sh_offset, stb);
+			(size_t)rela.r_offset, (size_t)ldr->sects[LLEXT_MEM_TEXT].sh_offset, stb);
 	}
 }
 
@@ -656,8 +717,8 @@ static int llext_link(struct llext_loader *ldr, struct llext *ext, bool do_local
 			continue;
 		}
 
-		LOG_DBG("relocation section %s (%d) linked to section %d has %d relocations",
-			name, i, shdr.sh_link, rel_cnt);
+		LOG_DBG("relocation section %s (%d) linked to section %d has %zd relocations",
+			name, i, shdr.sh_link, (size_t)rel_cnt);
 
 		for (int j = 0; j < rel_cnt; j++) {
 			/* get each relocation entry */
@@ -685,10 +746,11 @@ static int llext_link(struct llext_loader *ldr, struct llext *ext, bool do_local
 
 			name = llext_string(ldr, ext, LLEXT_MEM_STRTAB, sym.st_name);
 
-			LOG_DBG("relocation %d:%d info %x (type %d, sym %d) offset %d sym_name "
+			LOG_DBG("relocation %d:%d info %zx (type %zd, sym %zd) offset %zd sym_name "
 				"%s sym_type %d sym_bind %d sym_ndx %d",
-				i, j, rel.r_info, ELF_R_TYPE(rel.r_info), ELF_R_SYM(rel.r_info),
-				rel.r_offset, name, ELF_ST_TYPE(sym.st_info),
+				i, j, (size_t)rel.r_info, (size_t)ELF_R_TYPE(rel.r_info),
+				(size_t)ELF_R_SYM(rel.r_info),
+				(size_t)rel.r_offset, name, ELF_ST_TYPE(sym.st_info),
 				ELF_ST_BIND(sym.st_info), sym.st_shndx);
 
 			uintptr_t link_addr, op_loc;
@@ -701,31 +763,32 @@ static int llext_link(struct llext_loader *ldr, struct llext *ext, bool do_local
 
 				if (link_addr == 0) {
 					LOG_ERR("Undefined symbol with no entry in "
-						"symbol table %s, offset %d, link section %d",
-						name, rel.r_offset, shdr.sh_link);
+						"symbol table %s, offset %zd, link section %d",
+						name, (size_t)rel.r_offset, shdr.sh_link);
 					return -ENODATA;
 				}
 			} else if (ELF_ST_TYPE(sym.st_info) == STT_SECTION ||
-				   ELF_ST_TYPE(sym.st_info) == STT_FUNC) {
-				/* Current relocation location holds an offset into the section */
+				   ELF_ST_TYPE(sym.st_info) == STT_FUNC ||
+				   ELF_ST_TYPE(sym.st_info) == STT_OBJECT) {
+				/* Link address is relative to the start of the section */
 				link_addr = (uintptr_t)ext->mem[ldr->sect_map[sym.st_shndx]]
-					+ sym.st_value
-					+ *((uintptr_t *)op_loc);
+					+ sym.st_value;
 
 				LOG_INF("found section symbol %s addr 0x%lx", name, link_addr);
 			} else {
 				/* Nothing to relocate here */
+				LOG_DBG("not relocated");
 				continue;
 			}
 
 			LOG_INF("relocating (linking) symbol %s type %d binding %d ndx %d offset "
-				"%d link section %d",
+				"%zd link section %d",
 				name, ELF_ST_TYPE(sym.st_info), ELF_ST_BIND(sym.st_info),
-				sym.st_shndx, rel.r_offset, shdr.sh_link);
+				sym.st_shndx, (size_t)rel.r_offset, shdr.sh_link);
 
-			LOG_INF("writing relocation symbol %s type %d sym %d at addr 0x%lx "
+			LOG_INF("writing relocation symbol %s type %zd sym %zd at addr 0x%lx "
 				"addr 0x%lx",
-				name, ELF_R_TYPE(rel.r_info), ELF_R_SYM(rel.r_info),
+				name, (size_t)ELF_R_TYPE(rel.r_info), (size_t)ELF_R_SYM(rel.r_info),
 				op_loc, link_addr);
 
 			/* relocation */
@@ -761,7 +824,7 @@ static int do_llext_load(struct llext_loader *ldr, struct llext *ext,
 
 	ldr->sect_map = k_heap_alloc(&llext_heap, sect_map_sz, K_NO_WAIT);
 	if (!ldr->sect_map) {
-		LOG_ERR("Failed to allocate memory for section map, size %u", sect_map_sz);
+		LOG_ERR("Failed to allocate memory for section map, size %zu", sect_map_sz);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -769,6 +832,14 @@ static int do_llext_load(struct llext_loader *ldr, struct llext *ext,
 
 	ldr->sect_cnt = ldr->hdr.e_shnum;
 	ext->alloc_size += sect_map_sz;
+
+#ifdef CONFIG_USERSPACE
+	ret = k_mem_domain_init(&ext->mem_domain, 0, NULL);
+	if (ret != 0) {
+		LOG_ERR("Failed to initialize extenion memory domain %d", ret);
+		goto out;
+	}
+#endif
 
 	LOG_DBG("Finding ELF tables...");
 	ret = llext_find_tables(ldr);
@@ -974,4 +1045,27 @@ int llext_call_fn(struct llext *ext, const char *sym_name)
 	fn();
 
 	return 0;
+}
+
+int llext_add_domain(struct llext *ext, struct k_mem_domain *domain)
+{
+#ifdef CONFIG_USERSPACE
+	int ret = 0;
+
+	for (int i = 0; i < LLEXT_MEM_PARTITIONS; i++) {
+		if (ext->mem_size[i] == 0) {
+			continue;
+		}
+		ret = k_mem_domain_add_partition(domain, &ext->mem_parts[i]);
+		if (ret != 0) {
+			LOG_ERR("Failed adding memory partition %d to domain %p",
+				i, domain);
+			return ret;
+		}
+	}
+
+	return ret;
+#else
+	return -ENOSYS;
+#endif
 }

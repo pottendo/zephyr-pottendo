@@ -14,6 +14,17 @@
 #include <zephyr/drivers/uart.h>
 #include <zephyr/types.h>
 
+#include <soc.h>
+
+#define UART_RXTX_ADDR		DT_INST_REG_ADDR_BY_NAME(0, rxtx)
+#define UART_TXFULL_ADDR	DT_INST_REG_ADDR_BY_NAME(0, txfull)
+#define UART_RXEMPTY_ADDR	DT_INST_REG_ADDR_BY_NAME(0, rxempty)
+#define UART_EV_STATUS_ADDR	DT_INST_REG_ADDR_BY_NAME(0, ev_status)
+#define UART_EV_PENDING_ADDR	DT_INST_REG_ADDR_BY_NAME(0, ev_pending)
+#define UART_EV_ENABLE_ADDR	DT_INST_REG_ADDR_BY_NAME(0, ev_enable)
+#define UART_TXEMPTY_ADDR	DT_INST_REG_ADDR_BY_NAME(0, txempty)
+#define UART_RXFULL_ADDR	DT_INST_REG_ADDR_BY_NAME(0, rxfull)
+
 #define UART_EV_TX		(1 << 0)
 #define UART_EV_RX		(1 << 1)
 

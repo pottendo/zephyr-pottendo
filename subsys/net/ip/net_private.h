@@ -69,6 +69,8 @@ extern int net_icmp_call_ipv6_handlers(struct net_pkt *pkt,
 				       struct net_ipv6_hdr *ipv6_hdr,
 				       struct net_icmp_hdr *icmp_hdr);
 
+extern struct net_if *net_ipip_get_virtual_interface(struct net_if *input_iface);
+
 #if defined(CONFIG_NET_NATIVE) || defined(CONFIG_NET_OFFLOAD)
 extern void net_context_init(void);
 extern const char *net_context_state(struct net_context *context);
@@ -107,12 +109,14 @@ static inline bool net_context_is_recv_pktinfo_set(struct net_context *context)
 #endif
 
 #if defined(CONFIG_NET_NATIVE)
-enum net_verdict net_ipv4_input(struct net_pkt *pkt);
+enum net_verdict net_ipv4_input(struct net_pkt *pkt, bool is_loopback);
 enum net_verdict net_ipv6_input(struct net_pkt *pkt, bool is_loopback);
 #else
-static inline enum net_verdict net_ipv4_input(struct net_pkt *pkt)
+static inline enum net_verdict net_ipv4_input(struct net_pkt *pkt,
+					      bool is_loopback)
 {
 	ARG_UNUSED(pkt);
+	ARG_UNUSED(is_loopback);
 
 	return NET_CONTINUE;
 }

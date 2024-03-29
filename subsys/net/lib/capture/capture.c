@@ -41,8 +41,10 @@ NET_PKT_SLAB_DEFINE(capture_pkts, CONFIG_NET_CAPTURE_PKT_COUNT);
 NET_BUF_POOL_FIXED_DEFINE(capture_bufs, CONFIG_NET_CAPTURE_BUF_COUNT,
 			  CONFIG_NET_BUF_DATA_SIZE, 4, NULL);
 #else
+#define DATA_POOL_SIZE MAX(NET_PKT_BUF_RX_DATA_POOL_SIZE, NET_PKT_BUF_TX_DATA_POOL_SIZE)
+
 NET_BUF_POOL_VAR_DEFINE(capture_bufs, CONFIG_NET_CAPTURE_BUF_COUNT,
-			CONFIG_NET_BUF_DATA_POOL_SIZE, 4, NULL);
+			DATA_POOL_SIZE, 4, NULL);
 #endif
 
 static sys_slist_t net_capture_devlist;
@@ -230,7 +232,9 @@ static int setup_iface(struct net_if *iface, const char *ipaddr,
 		/* Set the netmask so that we do not get IPv4 traffic routed
 		 * into this interface.
 		 */
-		net_if_ipv4_set_netmask(iface, &netmask);
+		net_if_ipv4_set_netmask_by_addr(iface,
+						&net_sin(addr)->sin_addr,
+						&netmask);
 
 		*addr_len = sizeof(struct sockaddr_in);
 	} else {

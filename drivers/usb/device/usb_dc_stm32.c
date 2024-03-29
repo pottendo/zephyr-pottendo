@@ -217,10 +217,14 @@ static int usb_dc_stm32_clock_enable(void)
 		return -ENODEV;
 	}
 
-#ifdef CONFIG_SOC_SERIES_STM32U5X
-	/* VDDUSB independent USB supply (PWR clock is on) */
+#if defined(PWR_USBSCR_USB33SV) || defined(PWR_SVMCR_USV)
+
+	/*
+	 * VDDUSB independent USB supply (PWR clock is on)
+	 * with LL_PWR_EnableVDDUSB function (higher case)
+	 */
 	LL_PWR_EnableVDDUSB();
-#endif /* CONFIG_SOC_SERIES_STM32U5X */
+#endif /* PWR_USBSCR_USB33SV or PWR_SVMCR_USV */
 
 	if (DT_INST_NUM_CLOCKS(0) > 1) {
 		if (clock_control_configure(clk, (clock_control_subsys_t)&pclken[1],
@@ -508,7 +512,7 @@ int usb_dc_attach(void)
 
 	/*
 	 * Required for at least STM32L4 devices as they electrically
-	 * isolate USB features from VDDUSB. It must be enabled before
+	 * isolate USB features from VddUSB. It must be enabled before
 	 * USB can function. Refer to section 5.1.3 in DM00083560 or
 	 * DM00310109.
 	 */
@@ -780,7 +784,7 @@ int usb_dc_ep_enable(const uint8_t ep)
 	if (USB_EP_DIR_IS_OUT(ep) && ep != EP0_OUT) {
 		return usb_dc_ep_start_read(ep,
 					  usb_dc_stm32_state.ep_buf[USB_EP_GET_IDX(ep)],
-					  EP_MPS);
+					  ep_state->ep_mps);
 	}
 
 	return 0;
@@ -919,7 +923,7 @@ int usb_dc_ep_read_continue(uint8_t ep)
 	 */
 	if (!ep_state->read_count) {
 		usb_dc_ep_start_read(ep, usb_dc_stm32_state.ep_buf[USB_EP_GET_IDX(ep)],
-				     EP_MPS);
+				     ep_state->ep_mps);
 	}
 
 	return 0;
