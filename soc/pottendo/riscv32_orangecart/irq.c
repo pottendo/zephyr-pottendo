@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <zephyr/irq.h>
 //#include <zephyr/arch/riscv/arch.h>
-
+#include <zephyr/drivers/interrupt_controller/riscv_plic.h>
 /*
  * needed for VexRiscV clint to make clock working 
  */

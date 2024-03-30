@@ -7,7 +7,6 @@
 #ifndef __RISCV32_ORANGECART_SOC_H_
 #define __RISCV32_ORANGECART_SOC_H_
 
-//#include "../../common/riscv-privileged/soc_common.h"
 #include <zephyr/devicetree.h>
 #include <zephyr/arch/common/sys_io.h>
 

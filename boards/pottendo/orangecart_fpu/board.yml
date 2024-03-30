@@ -1,0 +1,5 @@
+board:
+  name: orangecart_fpu
+  vendor: pottendo
+  socs:
+    - name: orangecart_riscv32fpu

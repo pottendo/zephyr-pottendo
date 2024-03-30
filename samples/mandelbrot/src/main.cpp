@@ -17,7 +17,7 @@
 #define PAL_SIZE (2 * PIXELW)
 
 // set this to enable direct output on C64 gfx mem.
-#define C64
+//#define C64
 
 //#define NO_LOG
 #ifdef NO_LOG
