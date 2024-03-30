@@ -4,7 +4,7 @@
 if SOC_RISCV32_ORANGECART
 
 config SOC
-	default "orangecart"
+	default "orangecart_riscv32"
 
 config SYS_CLOCK_HW_CYCLES_PER_SEC
 	default 80000000

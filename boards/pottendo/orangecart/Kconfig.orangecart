@@ -1,0 +1,7 @@
+# Copyright (c) 2022-2023 pottendo
+# SPDX-License-Identifier: Apache-2.0
+
+config BOARD_ORANGECART
+	bool "Board with LiteX/VexRiscV CPU"
+	select SOC_RISCV32_ORANGECART
+	select ATOMIC_OPERATIONS_C

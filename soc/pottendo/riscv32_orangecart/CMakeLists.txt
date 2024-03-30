@@ -5,8 +5,8 @@
 #
 
 zephyr_sources(
-    ../riscv-privileged/common/soc_irq.S
-    ../riscv-privileged/common/vector.S
+    ../../common/riscv-privileged/soc_irq.S
+    ../../common/riscv-privileged/vector.S
 )
 
 zephyr_sources_ifdef(CONFIG_BOARD_ORANGECART_SMP irq.c)

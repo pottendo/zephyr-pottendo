@@ -1,0 +1,27 @@
+# Copyright (c) 2023 pottendo
+# SPDX-License-Identifier: Apache-2.0
+
+############################################## RVCop64 original
+if BOARD_ORANGECART
+
+config BOARD
+	default "orangecart"
+
+config ARCH_HAS_GDBSTUB
+    default n
+
+config SPI
+	default y
+
+config FPU
+    bool "Support floating point operations"
+	default n
+
+config DISK_DRIVER_SDMMC
+        default y if DISK_DRIVERS
+
+config C64_MEMBASE
+	hex "memory address, where bitstream maps the C64 64k"
+	default 0x00000000
+
+endif # BOARD_ORANGECART
