@@ -107,21 +107,37 @@
                 status = "okay";
             };
 */
+/*  older zephyr plic driver
             intc0: interrupt-controller@f0c00000 {
                 compatible = "sifive,plic-1.0.0";
-                //reg = <0xf0c00000 0x400000>;
                 reg = <0xf0c00000 0x00002000
-			           0xf0c02000 0x001fe000
-			           0xf0e00000 0x00200000>;
+    		        0xf0c02000 0x001fe000
+			        0xf0e00000 0x00200000>;
+                #address-cells = <0>;
                 #interrupt-cells = <2>;
-                #address-cells = <1>;
                 interrupt-controller;
                 reg-names = "prio", "irq_en", "reg";
-                //interrupts-extended = <&L0 0 &L1 0>;
+                //interrupts-extended = <&L0 11>;
+                interrupt-parent = <&L0>;
+                //interrupts = < 11 >;
                 riscv,ndev = <32>;
                 riscv,max-priority = <7>;
                 status="okay";
+            };            
+
+*/
+            intc0: interrupt-controller@f0c00000 {
+                compatible = "sifive,plic-1.0.0";
+                #address-cells = <0>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                interrupts-extended = <&L0 0>;
+                reg = <0xf0c00000 0x00400000>;
+                riscv,max-priority = <7>;
+                riscv,ndev = <32>;
+                status="okay";
             };
+
             clint0: clint@f0010000 {
                 compatible = "sifive,clint0";
                 reg = <0xf0010000 0x10000>;

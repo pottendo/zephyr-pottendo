@@ -1,0 +1,23 @@
+# Copyright (c) 2023 pottendo
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_VexRV32
+	bool "Orangecart system implementation"
+	select RISCV
+	select INCLUDE_RESET_VECTOR
+	select RISCV_ISA_RV32I
+	select RISCV_ISA_EXT_M
+	select RISCV_ISA_EXT_A
+	select RISCV_ISA_EXT_ZICSR
+	select RISCV_ISA_EXT_ZIFENCEI
+	select REQUIRES_FULL_LIBCPP
+	select SERIAL_SUPPORT_INTERRUPT
+	select SERIAL
+
+if SOC_VexRV32
+
+config LITEX_CSR_DATA_WIDTH
+	int "Select Control/Status register width"
+	default 32
+
+endif # SOC_RISCV32_LITEX_VEXRISCV

@@ -2,4 +2,9 @@ board:
   name: orangecart
   vendor: pottendo
   socs:
-    - name: orangecart_riscv32
+    - name: VexRV32
+    - name: VexRV32SMP
+      variants: 
+      - name: ima
+      - name: fpu
+      - name: smp

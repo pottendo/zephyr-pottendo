@@ -17,8 +17,9 @@
             CPU0: cpu@0 {
                 device_type = "cpu";
                 compatible = "riscv";
-                riscv,isa = "rv32i2p0_ma";
-                mmu-type = "riscv,sv32";
+                //riscv,isa = "rv32i2p0_ma";
+                riscv,isa = "rv32imas";
+                //mmu-type = "riscv,sv32";
                 reg = <0>;
                 clock-frequency = <80000000>;
                 status = "okay";
@@ -46,6 +47,7 @@
                 };
             };
         };
+
         memory@40000000 {
             device_type = "memory";
             reg = <0x40000000 0x1000000>;
@@ -53,16 +55,17 @@
         soc {
             #address-cells = <1>;
             #size-cells    = <1>;
-            compatible = "litex,vexriscv";
-            //compatible = "simple-bus";
+            compatible = "simple-bus"; //"litex,vexriscv";
+            //interrupt-parent = <&intc0>;
             ranges;
-
+/* 
             soc_ctrl0: soc_controller@f0000000 {
                 compatible = "litex,soc-controller";
                 reg = <0xf0000000 0xc>;
                 status = "okay";
             };
-/*
+*/
+/*  older zephyr plic driver
             intc0: interrupt-controller@f0c00000 {
                 compatible = "sifive,plic-1.0.0";
                 reg = <0xf0c00000 0x00002000
@@ -92,20 +95,17 @@
                 riscv,ndev = <32>;
                 status="okay";
             };
-
             clint0: clint@f0010000 {
-                //interrupt-parent = <&L0>;
                 compatible = "sifive,clint0";
                 reg = <0xf0010000 0x10000>;
                 interrupts-extended = 
-                < &L0 0x03 &L0 0x07 >;
+                < &L0 0x03 &L0 0x07>;
                 interrupt-names = "soft0", "timer0";
                 status="okay";
             };
-            uart0: serial@f0001000 {
+            liteuart0: serial@f0001000 {
                 compatible = "litex,uart0";
                 interrupt-parent = <&intc0>;
-                //interrupt-parent = <&L0>;
                 interrupts = <2 7>;
                 reg = <0xf0001000 0x4
                     0xf0001004 0x4
@@ -126,10 +126,10 @@
                     "rxfull";
                 status = "disabled";
             };
-            uart1: serial@f0004800 {
+
+            liteuart1: serial@f0004800 {
                 compatible = "litex,uart0";
                 interrupt-parent = <&intc0>;
-                //interrupt-parent = <&L0>;
                 reg = <0xf0004800 0x4
                     0xf0004804 0x4
                     0xf0004808 0x4
@@ -146,10 +146,10 @@
                     "ev_enable",
                     "txempty",
                     "rxfull";
-                interrupts = <4 7>;
+                interrupts = <0x4 7>;
                 status = "disabled";
              };
-            
+
             spi0: spi@f0002800 {
                 compatible = "litex,spi";
                 reg = <0xf0002800 0x4
@@ -197,12 +197,10 @@
                 interrupt-parent = <&intc0>;
                 interrupts = <5 7>;
                 status = "disabled";
-            };
+            };        
         };
-
         aliases {
-            serial0 = &uart0;
-            serial1 = &uart1;
+            serial0 = &liteuart0;
         };
 
 };

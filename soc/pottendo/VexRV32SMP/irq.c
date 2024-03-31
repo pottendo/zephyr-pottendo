@@ -3,7 +3,6 @@
  */
 
 /* fixme: introduce proper SOC KConfig item */
-#if defined(CONFIG_BOARD_ORANGECART_SMP) || defined(CONFIG_BOARD_ORANGECART_FPU) || defined(CONFIG_BOARD_ORANGECART2)
 #include <stdint.h>
 #include <zephyr/irq.h>
 //#include <zephyr/arch/riscv/arch.h>
@@ -73,8 +72,6 @@ void z_riscv_irq_priority_set(uint32_t irq, uint32_t priority, uint32_t flags)
 	}
 	riscv_plic_set_priority(irq, priority);
 }
-
-#endif /* CONFIG_BOARD_ORANGECARD_SMP */
 
 void led_ping(void)
 {

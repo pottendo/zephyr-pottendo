@@ -1,0 +1,25 @@
+# Copyright (c) 2023 pottendo
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_VexRV32
+
+config SOC
+	default "VexRV32"
+
+config SYS_CLOCK_HW_CYCLES_PER_SEC
+	default 80000000
+
+config RISCV_HAS_CPU_IDLE
+	bool
+
+config RISCV_HAS_PLIC
+	bool
+
+config NUM_IRQS
+	default 12
+
+config C64_MEMBASE
+	hex
+	default 0x00000000
+
+endif 

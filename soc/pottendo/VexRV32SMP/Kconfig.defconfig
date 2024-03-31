@@ -1,10 +1,10 @@
 # Copyright (c) 2023 pottendo
 # SPDX-License-Identifier: Apache-2.0
 
-if SOC_RISCV32_ORANGECART
+if SOC_VexRV32SMP
 
 config SOC
-	default "orangecart_riscv32"
+	default "VexRV32SMP"
 
 config SYS_CLOCK_HW_CYCLES_PER_SEC
 	default 80000000
@@ -20,6 +20,6 @@ config NUM_IRQS
 
 config C64_MEMBASE
 	hex
-	default 0x00000000
+	default 0x0f000000
 
 endif 

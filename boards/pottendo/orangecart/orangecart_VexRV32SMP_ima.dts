@@ -6,19 +6,17 @@
 
 /dts-v1/;
 
-#include <riscv32-RVCop64.dtsi>
-//#include <riscv32-SMP-RVCop64.dtsi>
+#include <pottendo/orangecart-VexRV32SMP-ima.dtsi>
 
 / {
 	model = "LiteX Orangecart";
 	compatible = "litex,vexriscv";
 	chosen {
-		zephyr,console = &uart0;
-		zephyr,shell-uart = &uart0;
+		zephyr,console = &liteuart0;
+		zephyr,shell-uart = &liteuart0;
 		zephyr,sram = &ram0;
-		zephyr,uart-pipe = &uart1;
+		zephyr,uart-pipe = &liteuart1;
 		/* zephyr,gdbstub-uart = &uart0; */
-		
 	};
 
 	ram0: memory@40000000 {
@@ -27,12 +25,12 @@
 	};
 };
 
-&uart0 {
+&liteuart0 {
 	status = "okay";
 	current-speed = <115200>;
 };
 
-&uart1 {
+&liteuart1 {
 	status = "okay";
 	current-speed = <115200>;
 	gsm: gsm-modem {
@@ -45,13 +43,21 @@
 	status = "okay";
 };
 
-&timer0 {
-	status = "okay";
-};
 &spi0 {
 	status = "okay";
 };
 
+&leds {
+	litex,ngpio = <4>;
+	status = "okay";
+};
+
+/*
+&timer0 {
+	status = "okay";
+};
+*/
+ 
 /*
 &dna0 {
 	status = "okay";

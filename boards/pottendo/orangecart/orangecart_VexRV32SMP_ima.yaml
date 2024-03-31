@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-identifier: orangecart_fpu
-name: LiteX SoC with VexRiscV-SMP softcore Single Core, FPU support
+identifier: orangecart_VexRV32SMP_ima
+name: LiteX SoC with VexRiscV-SMP softcore CPU
 type: mcu
 arch: riscv32
 toolchain:

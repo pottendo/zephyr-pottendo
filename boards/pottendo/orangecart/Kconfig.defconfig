@@ -2,20 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ############################################## RVCop64 original
-if BOARD_ORANGECART
+if BOARD_ORANGECART_VexRV32
 
 config BOARD
-	default "orangecart"
+	default "orangecart_VexRV32"
 
 config ARCH_HAS_GDBSTUB
     default n
 
 config SPI
 	default y
-
-config FPU
-    bool "Support floating point operations"
-	default n
 
 config DISK_DRIVER_SDMMC
         default y if DISK_DRIVERS
@@ -24,4 +20,76 @@ config C64_MEMBASE
 	hex "memory address, where bitstream maps the C64 64k"
 	default 0x00000000
 
-endif # BOARD_ORANGECART
+endif # BOARD_ORANGECART_VexRV32
+
+############################################## FPU
+if BOARD_ORANGECART_VexRV32SMP_FPU
+config BOARD
+        default "orangecart_VexRV32SMP_fpu"
+
+config SPI
+        default y
+
+config FPU
+    bool "Support floating point operations"
+        default y
+
+config DISK_DRIVER_SDMMC
+        default y if DISK_DRIVERS
+
+config C64_MEMBASE
+        hex "memory address, where bitstream maps the C64 64k"
+        default 0x0f000000
+
+config RISCV_HAS_PLIC
+        default y
+        
+endif # BOARD_ORANGECART_VexRV32SMP_FPU
+
+############################################## SMP
+if BOARD_ORANGECART_VexRV32SMP_SMP
+config BOARD
+        default "orangecart_VexRV32SMP_smp"
+
+config SPI
+        default y
+
+config FPU
+    bool "Support floating point operations"
+        default n
+
+config DISK_DRIVER_SDMMC
+        default y if DISK_DRIVERS
+
+config C64_MEMBASE
+        hex "memory address, where bitstream maps the C64 64k"
+        default 0x0f000000
+
+config RISCV_HAS_PLIC
+        default y
+        
+endif # BOARD_ORANGECART_VexRV32SMP_SMP
+
+############################################## SC, no FPU vexriscv_smp cpu
+if BOARD_ORANGECART_VexRV32SMP_IMA
+config BOARD
+        default "orangecart_VexRV32SMP_ima"
+
+config SPI
+        default y
+
+config FPU
+    bool "Support floating point operations"
+        default n
+
+config DISK_DRIVER_SDMMC
+        default y if DISK_DRIVERS
+
+config C64_MEMBASE
+        hex "memory address, where bitstream maps the C64 64k"
+        default 0x0f000000
+
+config RISCV_HAS_PLIC
+        default y
+        
+endif # BOARD_ORANGECART_VexRV32SMP_IMA

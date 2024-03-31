@@ -6,7 +6,7 @@
 
 /dts-v1/;
 
-#include <riscv32-FPU-RVCop64.dtsi>
+#include <pottendo/orangecart-VexRV32SMP-fpu.dtsi>
 
 / {
 	model = "LiteX Orangecart";
