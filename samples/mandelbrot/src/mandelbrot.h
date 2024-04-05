@@ -284,6 +284,7 @@ class mandel
             int xoffset = w * tx;
             for (int ty = 0; ty < thread_no; ty++)
             {
+                int ret;
                 int yoffset = h * ty;
                 tp[t] = new tparam_t(t,
                                      w, h,
@@ -294,16 +295,19 @@ class mandel
                                      ssw, ssh, xoffset, yoffset,
                                      master_sem, this);
                 pthread_attr_init(&attr[t]);
-                pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
+                ret = pthread_attr_setstack(&attr[t], stacks + t * STACK_SIZE, STACK_SIZE);
+                if (ret != 0)
+                    log_msg("setstack: %d - ssize = %d\n", ret, STACK_SIZE);
                 pthread_attr_setschedpolicy(&attr[t], SCHED_RR);
-                int ret;
                 if ((ret = pthread_create(&th, &attr[t], mandel_wrapper, tp[t])) != 0)
                     log_msg("pthread create failed for thread %d, %d\n", t, ret);
                 worker_tasks[t] = th;
                 ret = pthread_detach(th);
                 if (ret != 0)
                     log_msg("pthread detach failed for thread %d, %d\n", t, ret);
-                //usleep(20*1000); // needed to make zephyr happy when loggin is enabled. Seems some race with the the KickOff mutex. Maybe some bug?
+#if (CONFIG_LOG_DEFAULT_LEVEL > 3)                    
+                usleep(20*1000); // needed to make zephyr happy when loggin is enabled. Seems some race with the the KickOff mutex. Maybe some bug?
+#endif                
                 t++;
             }
         }

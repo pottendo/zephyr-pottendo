@@ -6,7 +6,6 @@
 #include <vector>
 
 #define NO_THREADS 16       // max 16 for Orangecart!
-#define STACK_SIZE 1024
 #define PIXELW 2 // 2
 #define MAX_ITER 128
 #define IMG_W 320 // 320
@@ -30,20 +29,17 @@
 #include "c64-lib.h"
 #else
 static char cv[CSIZE] = {};
+//char *cv;
 #endif
 
-#ifdef __ZEPHYR__
+#define STACK_SIZE 1024
+#ifdef CONFIG_BOARD_ORANGECART
 #if (NO_THREADS > 16)
 #error "too many threads for Orangencart's STACK_SIZE"
 #endif
 static char *stacks = (char *)0x10000000;   // fast SRAM on Orangecart, only 16k! so NO_THREADS <= 16
-
 #else
-
-#undef STACK_SIZE 
-#define STACK_SIZE PTHREAD_STACK_MIN
 static char *stacks;
-
 #endif
 
 #include "mandelbrot.h"
@@ -65,9 +61,12 @@ std::vector<rec_t> recs = {
 
 int main(void)
 {
-#ifndef __ZEPHYR__
-    stacks = new char[STACK_SIZE * NO_THREADS]();
+    log_msg("Welcome mandelbrot...\n");
+#ifndef CONFIG_BOARD_ORANGECART
+    stacks = (char *) alloca(STACK_SIZE * NO_THREADS); //new char[STACK_SIZE * NO_THREADS]();
+    log_msg("%s: stack_size per thread = %d, no threads=%d\n", __FUNCTION__, STACK_SIZE, NO_THREADS);
 #endif
+
 #ifdef C64
     c64 c64;
     std::cout << "C64 memory @0x" << std::hex << int(c64.get_mem()) << std::dec << '\n';
@@ -107,8 +106,6 @@ int main(void)
         std::cout << "system halted.\n";
         sleep(10);
     }
-#else
-    delete[] stacks;
 #endif
     sleep(2);
     return 0;
