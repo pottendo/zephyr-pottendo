@@ -25,6 +25,9 @@ The following CVEs are addressed by this release:
 More detailed information can be found in:
 https://docs.zephyrproject.org/latest/security/vulnerabilities.html
 
+* CVE-2024-3077 `Zephyr project bug tracker GHSA-gmfv-4vfh-2mh8
+  <https://github.com/zephyrproject-rtos/zephyr/security/advisories/GHSA-gmfv-4vfh-2mh8>`_
+
 Architectures
 *************
 
@@ -37,7 +40,7 @@ Architectures
 Bluetooth
 *********
 
-  * Added Nordic UART Service (NUS), enabled by the :kconfig:option:`CONFIG_BT_NUS`.
+  * Added Nordic UART Service (NUS), enabled by the :kconfig:option:`CONFIG_BT_ZEPHYR_NUS`.
     This Service exposes the ability to declare multiple instances of the GATT service,
     allowing multiple serial endpoints to be used for different purposes.
 
@@ -228,6 +231,11 @@ Libraries / Subsystems
 
 * Storage
 
+  * FAT FS: It is now possible to expose file system formatting functionality for FAT without also
+    enabling automatic formatting on mount failure by setting the
+    :kconfig:option:`CONFIG_FS_FATFS_MKFS` Kconfig option. This option is enabled by default if
+    :kconfig:option:`CONFIG_FILE_SYSTEM_MKFS` is set.
+
 * POSIX API
 
 * LoRa/LoRaWAN
@@ -252,6 +260,6 @@ Tests and Samples
 *****************
 
   * Added snippet for easily enabling UART over Bluetooth LE by passing ``-S nus-console`` during
-    ``west build``. This snippet sets the :kconfig:option:`CONFIG_BT_NUS_AUTO_START_BLUETOOTH`
+    ``west build``. This snippet sets the :kconfig:option:`CONFIG_BT_ZEPHYR_NUS_AUTO_START_BLUETOOTH`
     which allows non-Bluetooth samples that use the UART APIs to run without modifications
     (e.g: Console and Logging examples).
