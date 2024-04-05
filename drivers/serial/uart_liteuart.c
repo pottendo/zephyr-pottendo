@@ -294,8 +294,8 @@ static void liteuart_uart_irq_handler(const struct device *dev)
 
 	/* Clear RX events, TX events still needed to enqueue the next transfer */
 	litex_write8(UART_EV_RX, UART_EV_PENDING_ADDR);
-	/* clear events */
-	//litex_write8(UART_EV_TX | UART_EV_RX, config->ev_pending_addr);
+	/* clear events XXX the following line was commented out!*/
+	litex_write8(UART_EV_TX | UART_EV_RX, config->ev_pending_addr);
 
 	irq_unlock(key);
 }
@@ -333,7 +333,6 @@ static int uart_liteuart_init(const struct device *dev)
 
 	return 0;
 }
-extern void plic_irq_handler2(void *a);
 
 #ifdef CONFIG_UART_INTERRUPT_DRIVEN
 #define LITEX_UART_CONFIG_FUNC(node_id, n) \
