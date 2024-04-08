@@ -2474,10 +2474,11 @@ OSDP:
     - sample.mgmt.osdp
 
 hawkBit:
-  status: odd fixes
+  status: maintained
+  maintainers:
+    - maass-hamburg
   collaborators:
     - ycsin
-    - maass-hamburg
   files:
     - subsys/mgmt/hawkbit/
     - include/zephyr/mgmt/hawkbit.h
@@ -3086,8 +3087,7 @@ ADI Platforms:
     - drivers/ethernet/eth_adin*
     - drivers/mdio/mdio_adin*
     - drivers/regulator/regulator_adp5360*
-    - drivers/sensor/adt*/
-    - drivers/sensor/adxl*/
+    - drivers/sensor/adi/
     - dts/bindings/*/adi,*
     - dts/bindings/*/lltc,*
     - dts/bindings/*/maxim,*
@@ -3596,7 +3596,7 @@ ITE Platforms:
     - sjg20
   files:
     - boards/ite/
-    - drivers/*/*/*it8xxx2*.c
+    - drivers/sensor/ite/
     - drivers/*/*it8xxx2*.c
     - drivers/*/*_ite_*
     - dts/bindings/*/*ite*
@@ -3676,7 +3676,7 @@ Infineon Platforms:
     - drivers/*/*ifx_cat1*
     - drivers/*/*xmc*/
     - drivers/*/*xmc*.c
-    - drivers/*/*/*xmc*
+    - drivers/sensor/infineon/
     - dts/arm/infineon/
     - dts/arm/cypress/
     - soc/cypress/
