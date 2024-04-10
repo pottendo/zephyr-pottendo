@@ -762,6 +762,8 @@ Devicetree:
   status: maintained
   maintainers:
     - galak
+  collaborators:
+    - decsny
   files:
     - scripts/dts/
     - dts/common/
@@ -779,6 +781,8 @@ Devicetree Bindings:
   status: maintained
   maintainers:
     - galak
+  collaborators:
+    - decsny
   files:
     - dts/bindings/
     - include/zephyr/dt-bindings/
@@ -3196,11 +3200,7 @@ Raspberry Pi Pico Platforms:
     - "platform: Raspberry Pi Pico"
 
 SiLabs Platforms:
-  status: maintained
-  maintainers:
-    - fkokosinski
-  collaborators:
-    - tgorochowik
+  status: odd fixes
   files:
     - soc/silabs/
     - boards/silabs/
@@ -3217,6 +3217,7 @@ Intel Platforms (X86):
   collaborators:
     - tbursztyka
     - laurenmurphyx64
+    - najumon1980
   files:
     - boards/intel/adl/
     - boards/intel/ehl/
@@ -3484,7 +3485,7 @@ Renesas RA Platforms:
   maintainers:
     - soburi
   files:
-    - boards/arduino/uno_r4_minima/
+    - boards/arduino/uno_r4/
     - drivers/*/*renesas_ra*
     - drivers/pinctrl/renesas/ra/
     - dts/arm/renesas/ra/
@@ -4248,9 +4249,7 @@ West:
     - "platform: Raspberry Pi Pico"
 
 "West project: hal_silabs":
-  status: maintained
-  maintainers:
-    - fkokosinski
+  status: odd fixes
   collaborators:
     - sateeshkotapati
     - yonsch
@@ -4669,6 +4668,7 @@ x86 arch:
     - dcpleung
     - ceolin
     - laurenmurphyx64
+    - najumon1980
   files:
     - arch/x86/
     - include/zephyr/arch/x86/
