@@ -90,14 +90,20 @@ Boards & SoC Support
 
 * Made these changes for native/POSIX boards:
 
+  * LLVM fuzzing support has been refactored while adding support for it in native_sim.
+
 * Added support for these following shields:
 
 Build system and Infrastructure
 *******************************
 
-* CI-enabled blackbox tests were added in order to verify correctness of the vast majority of Twister flags.
+  * CI-enabled blackbox tests were added in order to verify correctness of the vast majority of Twister flags.
 
-* Compiler
+  * A ``socs`` folder for applications has been introduced that allows for Kconfig fragments and
+    devicetree overlays that should apply to any board target using a particular SoC and board
+    qualifier.
+
+  * :ref:`Board/SoC flashing configuration<flashing-soc-board-config>` settings have been added.
 
   * Deprecated the global CSTD cmake property in favor of the :kconfig:option:`CONFIG_STD_C`
     choice to select the C Standard version. Additionally subsystems can select a minimum
@@ -161,6 +167,11 @@ Drivers and Sensors
 
 * Entropy
 
+* eSPI
+
+  * Renamed eSPI virtual wire direction macros and enum values to match the new terminology in
+    eSPI 1.5 specification.
+
 * Ethernet
 
   * Deperecated eth_mcux driver in favor of the reworked nxp_enet driver.
@@ -209,6 +220,8 @@ Drivers and Sensors
 * SDHC
 
 * Sensor
+
+  * Added TMP114 driver
 
 * Serial
 
