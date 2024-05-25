@@ -263,6 +263,7 @@ static struct bt_bap_stream_ops stream_ops = {
 };
 
 static void cap_discovery_complete_cb(struct bt_conn *conn, int err,
+				      const struct bt_csip_set_coordinator_set_member *member,
 				      const struct bt_csip_set_coordinator_csis_inst *csis_inst)
 {
 	if (err != 0) {
@@ -1005,7 +1006,7 @@ static void setup_extended_adv(struct bt_le_ext_adv **adv)
 {
 	int err;
 
-	/* Create a non-connectable non-scannable advertising set */
+	/* Create a non-connectable advertising set */
 	err = bt_le_ext_adv_create(BT_LE_EXT_ADV_CUSTOM, NULL, adv);
 	if (err != 0) {
 		FAIL("Unable to create extended advertising set: %d\n", err);

@@ -334,9 +334,6 @@ void nrfx_busy_wait(uint32_t usec_to_wait);
 				   NRFX_PPI_GROUPS_USED_BY_802154_DRV | \
 				   NRFX_PPI_GROUPS_USED_BY_MPSL)
 
-/** @brief Bitmask that defines GPIOTE channels that are reserved for use outside of the nrfx library. */
-#define NRFX_GPIOTE_CHANNELS_USED NRFX_GPIOTE_CHANNELS_USED_BY_BT_CTLR
-
 #if defined(CONFIG_BT_CTLR)
 /*
  * The enabled Bluetooth controller subsystem is responsible for providing
@@ -348,11 +345,9 @@ void nrfx_busy_wait(uint32_t usec_to_wait);
 #include <bt_ctlr_used_resources.h>
 #define NRFX_PPI_CHANNELS_USED_BY_BT_CTLR    BT_CTLR_USED_PPI_CHANNELS
 #define NRFX_PPI_GROUPS_USED_BY_BT_CTLR      BT_CTLR_USED_PPI_GROUPS
-#define NRFX_GPIOTE_CHANNELS_USED_BY_BT_CTLR BT_CTLR_USED_GPIOTE_CHANNELS
 #else
 #define NRFX_PPI_CHANNELS_USED_BY_BT_CTLR    0
 #define NRFX_PPI_GROUPS_USED_BY_BT_CTLR      0
-#define NRFX_GPIOTE_CHANNELS_USED_BY_BT_CTLR 0
 #endif
 
 #if defined(CONFIG_NRF_802154_RADIO_DRIVER)
@@ -366,6 +361,10 @@ void nrfx_busy_wait(uint32_t usec_to_wait);
 #define NRFX_PPI_GROUPS_USED_BY_802154_DRV     NRF_802154_DPPI_GROUPS_USED_MASK
 #elif defined(NRF54L_SERIES)
 #include <../src/nrf_802154_peripherals_nrf54l.h>
+#define NRFX_PPI_CHANNELS_USED_BY_802154_DRV   NRF_802154_DPPI_CHANNELS_USED_MASK
+#define NRFX_PPI_GROUPS_USED_BY_802154_DRV     NRF_802154_DPPI_GROUPS_USED_MASK
+#elif defined(NRF54H_SERIES)
+#include <../src/nrf_802154_peripherals_nrf54h.h>
 #define NRFX_PPI_CHANNELS_USED_BY_802154_DRV   NRF_802154_DPPI_CHANNELS_USED_MASK
 #define NRFX_PPI_GROUPS_USED_BY_802154_DRV     NRF_802154_DPPI_GROUPS_USED_MASK
 #else

@@ -114,11 +114,7 @@
 ACPI:
   status: maintained
   maintainers:
-    - jhedberg
     - najumon1980
-  collaborators:
-    - finikorg
-    - tbursztyka
   files:
     - lib/acpi/
     - include/zephyr/acpi/
@@ -244,6 +240,7 @@ Ambiq Platforms:
   status: odd fixes
   collaborators:
     - aaronyegx
+    - AlessandroLuo
     - RichardSWheatley
   files:
     - soc/ambiq/
@@ -446,6 +443,7 @@ Bluetooth Audio:
     - tests/bluetooth/audio/
     - tests/bsim/bluetooth/audio/
     - tests/bluetooth/shell/audio.conf
+    - tests/bluetooth/tester/overlay-le-audio.conf
     - doc/connectivity/bluetooth/api/audio/
     - samples/bluetooth/broadcast_audio*/
     - samples/bluetooth/hap*/
@@ -854,6 +852,7 @@ Documentation:
     - doc/project/
     - doc/releases/
     - doc/security/
+    - doc/safety/
     - README.rst
     - doc/substitutions.txt
     - doc/images/Zephyr-Kite-in-tree.png
@@ -1092,6 +1091,7 @@ Release Notes:
     - include/zephyr/crypto/
     - samples/drivers/crypto/
     - tests/crypto/
+    - doc/services/crypto/
   labels:
     - "area: Crypto / RNG"
   tests:
@@ -1233,6 +1233,7 @@ Release Notes:
   status: odd fixes
   collaborators:
     - decsny
+    - lmajewski
   files:
     - drivers/ethernet/
     - include/zephyr/dt-bindings/ethernet/
@@ -1321,6 +1322,9 @@ Release Notes:
   status: maintained
   maintainers:
     - bjarki-trackunit
+  collaborators:
+    - tomi-font
+    - fabiobaltieri
   files:
     - doc/hardware/peripherals/gnss.rst
     - drivers/gnss/
@@ -1488,6 +1492,8 @@ Release Notes:
 
 "Drivers: Reset":
   status: odd fixes
+  collaborators:
+    - decsny
   files:
     - drivers/reset/
     - include/zephyr/drivers/reset.h
@@ -1668,10 +1674,6 @@ Release Notes:
   status: maintained
   maintainers:
     - dcpleung
-  collaborators:
-    - jhedberg
-    - finikorg
-    - tbursztyka
   files:
     - drivers/pcie/
     - include/zephyr/drivers/pcie/
@@ -1814,6 +1816,7 @@ Release Notes:
     - teburd
     - yperess
     - tristan-google
+    - ubieda
   files:
     - drivers/sensor/
     - include/zephyr/drivers/sensor.h
@@ -2411,7 +2414,6 @@ Mbed TLS:
     - ithinuel
   files:
     - tests/crypto/mbedtls/
-    - doc/services/crypto/
     - tests/benchmarks/mbedtls/
   labels:
     - "area: Crypto / RNG"
@@ -3144,11 +3146,15 @@ Synopsys Platforms:
   collaborators:
     - abrodkin
     - evgeniy-paltsev
-    - IRISZZW
   files:
     - soc/snps/
     - boards/snps/
+    - boards/qemu/arc/
     - samples/boards/arc_secure_services/
+    - scripts/west_commands/runners/mdb.py
+    - scripts/west_commands/tests/test_mdb.py
+    - scripts/west_commands/runners/nsim.py
+    - cmake/emu/nsim.cmake
   labels:
     - "platform: Synopsys"
 
@@ -3224,11 +3230,12 @@ SiLabs Platforms:
 Intel Platforms (X86):
   status: maintained
   maintainers:
-    - jhedberg
+    - edersondisouza
   collaborators:
-    - tbursztyka
-    - laurenmurphyx64
     - najumon1980
+    - teburd
+    - dcpleung
+    - ceolin
   files:
     - boards/intel/adl/
     - boards/intel/ehl/
@@ -3237,16 +3244,18 @@ Intel Platforms (X86):
     - soc/intel/atom/
     - soc/intel/lakemont/
     - soc/intel/*_lake/
+    - drivers/timer/Kconfig.x86
+    - drivers/timer/hpet.c
+    - drivers/timer/apic*
   labels:
     - "platform: X86"
 
 Intel Platforms (Xtensa):
   status: maintained
   maintainers:
-    - nashif
+    - dcpleung
   collaborators:
     - andyross
-    - dcpleung
     - lyakh
     - lgirdwood
     - marc-hb
@@ -3256,6 +3265,7 @@ Intel Platforms (Xtensa):
     - softwarecki
     - jxstelter
     - marcinszkudlinski
+    - nashif
   files:
     - boards/intel/adsp/
     - soc/intel/intel_adsp/
@@ -3274,6 +3284,7 @@ Intel Platforms (ISH):
   collaborators:
     - teburd
     - likongintel
+    - nashif
   files:
     - boards/intel/ish/
     - soc/intel/intel_ish/
@@ -3341,6 +3352,7 @@ NXP Platforms (MCU):
     - yvanderv
     - EmilioCBen
     - decsny
+    - butok
   files:
     - boards/nxp/mimxrt*/
     - boards/nxp/frdm*/
@@ -3461,11 +3473,11 @@ nRF Platforms:
   status: maintained
   maintainers:
     - anangl
+    - masz-nordic
   collaborators:
     - jaz1-nordic
     - kl-cruz
     - magp-nordic
-    - masz-nordic
     - nika-nordic
   files:
     - boards/nordic/
@@ -3479,6 +3491,21 @@ nRF Platforms:
     - snippets/nordic*/
   labels:
     - "platform: nRF"
+
+OpenTitan Platforms:
+  status: maintained
+  maintainers:
+    - snematbakhsh
+  files:
+    - boards/lowrisc/opentitan_earlgrey/
+    - drivers/*/*opentitan*
+    - dts/bindings/*/*opentitan*
+    - dts/riscv/lowrisc/*opentitan*
+    - soc/lowrisc/opentitan/
+  labels:
+    - "platform: OpenTitan"
+  description: >-
+    OpenTitan boards, SOCs, dts files and related drivers.
 
 Renesas SmartBond Platforms:
   status: maintained
@@ -3618,7 +3645,7 @@ ITE Platforms:
     - drivers/sensor/ite/
     - drivers/*/*it8xxx2*.c
     - drivers/*/*_ite_*
-    - dts/bindings/*/*ite*
+    - dts/bindings/*/ite*
     - dts/riscv/ite/
     - soc/ite/
   labels:
@@ -3698,8 +3725,6 @@ Infineon Platforms:
     - drivers/*/*xmc*
     - drivers/sensor/infineon/
     - dts/arm/infineon/
-    - dts/arm/cypress/
-    - soc/cypress/
     - dts/bindings/*/*infineon*
     - soc/infineon/
   labels:
@@ -3755,12 +3780,12 @@ Sysbuild:
     - "57300"
   files:
     - share/sysbuild/
-    - samples/application_development/sysbuild/
+    - samples/sysbuild/
     - doc/build/sysbuild/
   labels:
     - "area: Sysbuild"
   tests:
-    - sample.application_development.sysbuild
+    - sample.sysbuild
 
 Task Watchdog:
   status: maintained
@@ -3818,7 +3843,7 @@ TF-M Integration:
   maintainers:
     - d3zd3z
   collaborators:
-    - SebastianBoe
+    - Vge0rge
     - ithinuel
   files:
     - samples/tfm_integration/
@@ -4007,9 +4032,6 @@ West:
   status: maintained
   maintainers:
     - najumon1980
-    - jhedberg
-  collaborators:
-    - tbursztyka
   files:
     - modules/acpica/
   labels:
@@ -4197,6 +4219,7 @@ West:
   status: odd fixes
   collaborators:
     - aaronyegx
+    - AlessandroLuo
     - RichardSWheatley
   files:
     - modules/hal_ambiq/
@@ -4347,6 +4370,9 @@ West:
   status: maintained
   maintainers:
     - KhiemNguyenT
+    - ioannis-karachalios
+  collaborators:
+    - blauret
     - andrzej-kaczmarek
   files: []
   labels:
@@ -4676,7 +4702,7 @@ West:
   maintainers:
     - d3zd3z
   collaborators:
-    - SebastianBoe
+    - Vge0rge
     - ithinuel
   files:
     - modules/trusted-firmware-m/
@@ -4688,7 +4714,7 @@ West:
   maintainers:
     - d3zd3z
   collaborators:
-    - SebastianBoe
+    - Vge0rge
     - ithinuel
   files: []
   labels:
@@ -4712,7 +4738,7 @@ West:
   maintainers:
     - d3zd3z
   collaborators:
-    - SebastianBoe
+    - Vge0rge
     - ithinuel
   files: []
   labels:
@@ -4779,15 +4805,14 @@ Xtensa arch:
 x86 arch:
   status: maintained
   maintainers:
-    - jhedberg
+    - edersondisouza
   collaborators:
-    - tbursztyka
     - andyross
-    - nashif
     - dcpleung
     - ceolin
     - laurenmurphyx64
     - najumon1980
+    - nashif
   files:
     - arch/x86/
     - include/zephyr/arch/x86/

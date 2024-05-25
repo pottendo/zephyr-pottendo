@@ -12,6 +12,7 @@ Major enhancements with this release include:
 * A new, completely overhauled hardware model has been introduced. This changes
   the way both SoCs and boards are named, defined and constructed in Zephyr.
   Additional information can be found in the :ref:`board_porting_guide`.
+* Zephyr now requires Python 3.10 or higher
 
 An overview of the changes required or recommended when migrating your application from Zephyr
 v3.6.0 to Zephyr v3.7.0 can be found in the separate :ref:`migration guide<migration_3.7>`.
@@ -28,8 +29,18 @@ https://docs.zephyrproject.org/latest/security/vulnerabilities.html
 * CVE-2024-3077 `Zephyr project bug tracker GHSA-gmfv-4vfh-2mh8
   <https://github.com/zephyrproject-rtos/zephyr/security/advisories/GHSA-gmfv-4vfh-2mh8>`_
 
+* CVE-2024-4785: Under embargo until 2024-08-07
+
 API Changes
 ***********
+
+Removed APIs in this release
+============================
+
+ * The Bluetooth subsystem specific debug symbols are removed. They have been replaced with the
+   Zephyr logging ones.
+
+ * Removed deprecated ``pcie_probe`` and ``pcie_bdf_lookup`` functions from the PCIe APIs.
 
 Deprecated in this release
 ==========================
@@ -49,6 +60,10 @@ Deprecated in this release
    Application developer will now need to set the advertised name themselves by updating the advertising data
    or the scan response data.
 
+ * SPI
+
+  * Deprecated :c:func:`spi_is_ready` API function has been removed.
+
 Architectures
 *************
 
@@ -56,20 +71,45 @@ Architectures
 
 * ARM
 
-* RISC-V
+* ARM64
 
-  * Implemented frame-pointer based stack unwinding.
+  * Implemented symbol names in the backtraces, enable by selecting :kconfig:option:`CONFIG_SYMTAB`
+
+* RISC-V
 
   * The fatal error message triggered from a fault now contains the callee-saved-registers states.
 
+  * Implemented stack unwinding
+
+    * Frame-pointer can be selected to enable precise stack traces at the expense of slightly
+      increased size and decreased speed.
+
+    * Symbol names can be enabled by selecting :kconfig:option:`CONFIG_EXCEPTION_STACK_TRACE_SYMTAB`
+
 * Xtensa
+
+Kernel
+******
+
+  * Added :c:func:`k_uptime_seconds` function to simplify `k_uptime_get() / 1000` usage.
 
 Bluetooth
 *********
+* Audio
+
+  * Removed ``err`` from :c:struct:`bt_bap_broadcast_assistant_cb.recv_state_removed` as it was
+    redundant.
+
+* Host
 
   * Added Nordic UART Service (NUS), enabled by the :kconfig:option:`CONFIG_BT_ZEPHYR_NUS`.
     This Service exposes the ability to declare multiple instances of the GATT service,
     allowing multiple serial endpoints to be used for different purposes.
+
+  * Implemented Hands-free Audio Gateway (AG), enabled by the :kconfig:option:`CONFIG_BT_HFP_AG`.
+    It works as a device that is the gateway of the audio. Typical device acting as Audio
+    Gateway is cellular phone. It controls the device (Hands-free Unit), that is the remote
+    audio input and output mechanism.
 
 Boards & SoC Support
 ********************
@@ -89,6 +129,8 @@ Boards & SoC Support
 * Made these changes for RISC-V boards:
 
 * Made these changes for native/POSIX boards:
+
+  * Introduced the simulated :ref:`nrf54l15bsim<nrf54l15bsim>` target.
 
   * LLVM fuzzing support has been refactored while adding support for it in native_sim.
 
@@ -195,6 +237,11 @@ Drivers and Sensors
 
 * Input
 
+* LED Strip
+
+  * The ``chain-length`` and ``color-mapping`` properties have been added to all LED strip
+    bindings.
+
 * MDIO
 
 * MFD
@@ -222,6 +269,7 @@ Drivers and Sensors
 * Sensor
 
   * Added TMP114 driver
+  * Added DS18S20 1-wire temperature sensor driver.
 
 * Serial
 
@@ -234,6 +282,11 @@ Drivers and Sensors
 * USB
 
 * W1
+
+* Watchdog
+
+  * Added :kconfig:option:`CONFIG_WDT_NPCX_WARNING_LEADING_TIME_MS` to set the leading warning time
+    in milliseconds. Removed no longer used :kconfig:option:`CONFIG_WDT_NPCX_DELAY_CYCLES`.
 
 * Wi-Fi
 
@@ -263,6 +316,9 @@ Networking
 
     * :c:func:`lwm2m_set_bulk`
 
+  * Added new ``offset`` parameter to :c:type:`lwm2m_engine_set_data_cb_t` callback type.
+    This affects post write and validate callbacks as well as some firmware callbacks.
+
 * IPSP:
 
   * Removed IPSP support. ``CONFIG_NET_L2_BT`` does not exist anymore.
@@ -275,6 +331,13 @@ Devicetree
 
 Libraries / Subsystems
 **********************
+
+* Debug
+
+  * symtab
+
+   * By enabling :kconfig:option:`CONFIG_SYMTAB`, the symbol table will be
+     generated with Zephyr link stage executable on supported architectures.
 
 * Management
 
@@ -312,6 +375,9 @@ Libraries / Subsystems
 
 * Crypto
 
+  * MbedTLS was updated to 3.6.0. Release notes can be found at:
+    https://github.com/Mbed-TLS/mbedtls/releases/tag/v3.6.0
+
 * Random
 
   * Besides the existing :c:func:`sys_rand32_get` function, :c:func:`sys_rand8_get`,
@@ -321,6 +387,13 @@ Libraries / Subsystems
 * Retention
 
 * SD
+
+* State Machine Framework
+
+  * The :c:macro:`SMF_CREATE_STATE` macro now always takes 5 arguments.
+  * Transition sources that are parents of the state that was run now choose the correct Least
+    Common Ancestor for executing Exit and Entry Actions.
+  * Passing ``NULL`` to :c:func:`smf_set_state` is now not allowed.
 
 * Storage
 
