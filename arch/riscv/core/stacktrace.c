@@ -27,7 +27,7 @@ struct stackframe {
 	uintptr_t ra;
 };
 
-#ifdef CONFIG_RISCV_ENABLE_FRAME_POINTER
+#ifdef CONFIG_FRAME_POINTER
 #define SFP_FMT "fp: "
 #else
 #define SFP_FMT "sp: "
@@ -42,26 +42,29 @@ struct stackframe {
 	LOG_ERR("     %2d: " SFP_FMT PR_REG "   ra: " PR_REG, idx, sfp, ra)
 #endif
 
-static bool in_stack_bound(uintptr_t addr)
+static bool in_stack_bound(uintptr_t addr, const z_arch_esf_t *esf)
 {
 #ifdef CONFIG_THREAD_STACK_INFO
 	uintptr_t start, end;
 
 	if (_current == NULL || arch_is_in_isr()) {
 		/* We were servicing an interrupt */
-		int cpu_id;
-
-#ifdef CONFIG_SMP
-		cpu_id = arch_curr_cpu()->id;
-#else
-		cpu_id = 0;
-#endif
+		uint8_t cpu_id = IS_ENABLED(CONFIG_SMP) ? arch_curr_cpu()->id : 0U;
 
 		start = (uintptr_t)K_KERNEL_STACK_BUFFER(z_interrupt_stacks[cpu_id]);
 		end = start + CONFIG_ISR_STACK_SIZE;
 #ifdef CONFIG_USERSPACE
-		/* TODO: handle user threads */
-#endif
+	} else if (((esf->mstatus & MSTATUS_MPP) == PRV_U) &&
+		   ((_current->base.user_options & K_USER) != 0)) {
+		/* See: zephyr/include/zephyr/arch/riscv/arch.h */
+		if (IS_ENABLED(CONFIG_PMP_POWER_OF_TWO_ALIGNMENT)) {
+			start = _current->arch.priv_stack_start - CONFIG_PRIVILEGED_STACK_SIZE;
+			end = _current->arch.priv_stack_start;
+		} else {
+			start = _current->stack_info.start - CONFIG_PRIVILEGED_STACK_SIZE;
+			end = _current->stack_info.start;
+		}
+#endif /* CONFIG_USERSPACE */
 	} else {
 		start = _current->stack_info.start;
 		end = Z_STACK_PTR_ALIGN(_current->stack_info.start + _current->stack_info.size);
@@ -70,6 +73,7 @@ static bool in_stack_bound(uintptr_t addr)
 	return (addr >= start) && (addr < end);
 #else
 	ARG_UNUSED(addr);
+	ARG_UNUSED(esf);
 	return true;
 #endif /* CONFIG_THREAD_STACK_INFO */
 }
@@ -81,20 +85,16 @@ static inline bool in_text_region(uintptr_t addr)
 	return (addr >= (uintptr_t)&__text_region_start) && (addr < (uintptr_t)&__text_region_end);
 }
 
-#ifdef CONFIG_RISCV_ENABLE_FRAME_POINTER
+#ifdef CONFIG_FRAME_POINTER
 void z_riscv_unwind_stack(const z_arch_esf_t *esf)
 {
 	uintptr_t fp = esf->s0;
 	uintptr_t ra;
 	struct stackframe *frame;
 
-	if (esf == NULL) {
-		return;
-	}
-
 	LOG_ERR("call trace:");
 
-	for (int i = 0; (i < MAX_STACK_FRAMES) && (fp != 0U) && in_stack_bound(fp);) {
+	for (int i = 0; (i < MAX_STACK_FRAMES) && (fp != 0U) && in_stack_bound(fp, esf);) {
 		frame = (struct stackframe *)fp - 1;
 		ra = frame->ra;
 		if (in_text_region(ra)) {
@@ -114,21 +114,17 @@ void z_riscv_unwind_stack(const z_arch_esf_t *esf)
 
 	LOG_ERR("");
 }
-#else /* !CONFIG_RISCV_ENABLE_FRAME_POINTER */
+#else /* !CONFIG_FRAME_POINTER */
 void z_riscv_unwind_stack(const z_arch_esf_t *esf)
 {
 	uintptr_t sp = z_riscv_get_sp_before_exc(esf);
 	uintptr_t ra;
 	uintptr_t *ksp = (uintptr_t *)sp;
 
-	if (esf == NULL) {
-		return;
-	}
-
 	LOG_ERR("call trace:");
 
-	for (int i = 0;
-	     (i < MAX_STACK_FRAMES) && ((uintptr_t)ksp != 0U) && in_stack_bound((uintptr_t)ksp);
+	for (int i = 0; (i < MAX_STACK_FRAMES) && ((uintptr_t)ksp != 0U) &&
+			in_stack_bound((uintptr_t)ksp, esf);
 	     ksp++) {
 		ra = *ksp;
 		if (in_text_region(ra)) {
@@ -147,4 +143,4 @@ void z_riscv_unwind_stack(const z_arch_esf_t *esf)
 
 	LOG_ERR("");
 }
-#endif /* CONFIG_RISCV_ENABLE_FRAME_POINTER */
+#endif /* CONFIG_FRAME_POINTER */

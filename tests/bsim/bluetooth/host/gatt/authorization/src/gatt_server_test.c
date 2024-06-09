@@ -45,7 +45,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 	g_conn = NULL;
 }
 
-BT_CONN_CB_DEFINE(conn_callbacks) = {
+static struct bt_conn_cb conn_callbacks = {
 	.connected = connected,
 	.disconnected = disconnected,
 };
@@ -331,6 +331,8 @@ static void test_main(void)
 		return;
 	}
 
+	bt_conn_cb_register(&conn_callbacks);
+
 	err = bt_enable(NULL);
 	if (err != 0) {
 		FAIL("Bluetooth init failed (err %d)\n", err);
@@ -355,7 +357,7 @@ static void test_main(void)
 static const struct bst_test_instance test_gatt_server[] = {
 	{
 		.test_id = "gatt_server",
-		.test_post_init_f = test_init,
+		.test_pre_init_f = test_init,
 		.test_tick_f = test_tick,
 		.test_main_f = test_main
 	},

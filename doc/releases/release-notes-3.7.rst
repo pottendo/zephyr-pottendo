@@ -13,6 +13,8 @@ Major enhancements with this release include:
   the way both SoCs and boards are named, defined and constructed in Zephyr.
   Additional information can be found in the :ref:`board_porting_guide`.
 * Zephyr now requires Python 3.10 or higher
+* Trusted Firmware-M (TF-M) 2.1.0 and Mbed TLS 3.6.0 have been integrated into Zephyr.
+  Both of these versions are LTS releases.
 
 An overview of the changes required or recommended when migrating your application from Zephyr
 v3.6.0 to Zephyr v3.7.0 can be found in the separate :ref:`migration guide<migration_3.7>`.
@@ -93,12 +95,27 @@ Kernel
 
   * Added :c:func:`k_uptime_seconds` function to simplify `k_uptime_get() / 1000` usage.
 
+  * Added :c:func:`k_realloc`, that uses kernel heap to implement traditional :c:func:`realloc`
+    semantics.
+
 Bluetooth
 *********
 * Audio
 
   * Removed ``err`` from :c:struct:`bt_bap_broadcast_assistant_cb.recv_state_removed` as it was
     redundant.
+
+  * The broadcast_audio_assistant sample has been renamed to bap_broadcast_assistant.
+    The broadcast_audio_sink sample has been renamed to bap_broadcast_sink.
+    The broadcast_audio_source sample has been renamed to bap_broadcast_source.
+    The unicast_audio_client sample has been renamed to bap_unicast_client.
+    The unicast_audio_server sample has been renamed to bap_unicast_server.
+    The public_broadcast_sink sample has been renamed to pbp_public_broadcast_sink.
+    The public_broadcast_source sample has been renamed to pbp_public_broadcast_source.
+
+  * The CAP Commander and CAP Initiator now no longer require CAS to be discovered for
+    :code:`BT_CAP_SET_TYPE_AD_HOC` sets. This allows applications to use these APIs on e.g.
+    BAP Unicast Servers that do not implement the CAP Acceptor role.
 
 * Host
 
@@ -110,6 +127,14 @@ Bluetooth
     It works as a device that is the gateway of the audio. Typical device acting as Audio
     Gateway is cellular phone. It controls the device (Hands-free Unit), that is the remote
     audio input and output mechanism.
+
+  * Implemented Advanced Audio Distribution Profile (A2DP) and Audio/Video Distribution Transport
+    Protocol (AVDTP), A2DP is enabled by :kconfig:option:`CONFIG_BT_A2DP`, AVDTP is enabled
+    by :kconfig:option:`CONFIG_BT_AVDTP`. They implement the protocols and procedures that
+    realize distribution of audio content of high quality in mono, stereo, or multi-channel modes.
+    A typical use case is the streaming of music content from a stereo music player to headphones
+    or speakers. The audio data is compressed in a proper format for efficient use of the limited
+    bandwidth.
 
 Boards & SoC Support
 ********************
@@ -246,6 +271,18 @@ Drivers and Sensors
 
 * MFD
 
+* Modem
+
+  * Removed deprecated ``GSM_PPP`` driver along with its dts compatible ``zephyr,gsm-ppp``.
+
+  * Removed deprecated ``UART_MUX`` and ``GSM_MUX`` previously used by ``GSM_PPP``.
+
+  * Removed support for dts compatible ``zephyr,gsm-ppp`` from ``MODEM_CELLULAR`` driver.
+
+  * Removed integration with ``UART_MUX`` from ``MODEM_IFACE_UART_INTERRUPT`` module.
+
+  * Removed integration with ``UART_MUX`` from ``MODEM_SHELL`` module.
+
 * PCIE
 
 * MEMC
@@ -292,6 +329,19 @@ Drivers and Sensors
 
   * Added support for configuring RTS threshold. With this, users can set the RTS threshold value or
     disable the RTS mechanism.
+
+  * Added support for configuring AP parameters. With this, users can set AP parameters at
+    build and run time.
+
+  * Added support to configure "max_inactivity" BSS parameter. Users can set this both build and runtime
+    duration to control the maximum time duration after which AP may disconnect a STA due to inactivity
+    from STA.
+
+  * Added support to configure "inactivity_poll" BSS parameter. Users can set build only AP parameter
+    to control whether AP may poll the STA before throwing away STA due to inactivity.
+
+  * Added support to configure "max_num_sta" BSS parameter. Users can set this both build and run time
+    parameter to control the maximum numuber of STA entries.
 
 Networking
 **********
@@ -375,7 +425,7 @@ Libraries / Subsystems
 
 * Crypto
 
-  * MbedTLS was updated to 3.6.0. Release notes can be found at:
+  * Mbed TLS was updated to 3.6.0. Release notes can be found at:
     https://github.com/Mbed-TLS/mbedtls/releases/tag/v3.6.0
 
 * Random
@@ -402,6 +452,9 @@ Libraries / Subsystems
     :kconfig:option:`CONFIG_FS_FATFS_MKFS` Kconfig option. This option is enabled by default if
     :kconfig:option:`CONFIG_FILE_SYSTEM_MKFS` is set.
 
+  * FS: It is now possible to truncate a file while opening using :c:func:`fs_open`
+    and by passing ``FS_O_TRUNC`` flag.
+
 * POSIX API
 
 * LoRa/LoRaWAN
@@ -416,6 +469,16 @@ HALs
 MCUboot
 *******
 
+Trusted Firmware-M
+******************
+
+* TF-M was updated to 2.1.0. Release notes can be found at:
+  https://tf-m-user-guide.trustedfirmware.org/releases/2.1.0.html
+
+* Support for MCUboot signature types other than RSA-3072 has been added.
+  The type can be chosen with the :kconfig:option:`CONFIG_TFM_MCUBOOT_SIGNATURE_TYPE` Kconfig option.
+  Using EC-P256, the new default, reduces flash usage by several KBs compared to RSA.
+
 zcbor
 *****
 
@@ -429,3 +492,12 @@ Tests and Samples
     ``west build``. This snippet sets the :kconfig:option:`CONFIG_BT_ZEPHYR_NUS_AUTO_START_BLUETOOTH`
     which allows non-Bluetooth samples that use the UART APIs to run without modifications
     (e.g: Console and Logging examples).
+
+  * Removed ``GSM_PPP`` specific configuration overlays from samples ``net/cloud/tagoio`` and
+    ``net/mgmt/updatehub``. The ``GSM_PPP`` device driver has been deprecated and removed. The new
+    ``MODEM_CELLULAR`` device driver which replaces it uses the native networking stack and ``PM``
+    subsystem, which like ethernet, requires no application specific actions to set up networking.
+
+  * Removed ``net/gsm_modem`` sample as the ``GSM_PPP`` device driver it depended on has been
+    deprecated and removed. The sample has been replaced by the sample ``net/cellular_modem``
+    based on the ``MODEM_CELLULAR`` device driver.

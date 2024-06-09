@@ -22,6 +22,40 @@ Build System
   out-of-tree SoCs and boards to be ported to the new model. See the
   :ref:`hw_model_v2` for more detailed information. (:github:`69607`)
 
+* The following build-time generated headers:
+
+  .. list-table::
+     :header-rows: 1
+
+     * - Affected header files
+     * - ``app_version.h``
+     * - ``autoconf.h``
+     * - ``cmake_intdef.h``
+     * - ``core-isa-dM.h``
+     * - ``devicetree_generated.h``
+     * - ``driver-validation.h``
+     * - ``kobj-types-enum.h``
+     * - ``linker-kobject-prebuilt-data.h``
+     * - ``linker-kobject-prebuilt-priv-stacks.h``
+     * - ``linker-kobject-prebuilt-rodata.h``
+     * - ``mcuboot_version.h``
+     * - ``offsets.h``
+     * - ``otype-to-size.h``
+     * - ``otype-to-str.h``
+     * - ``strerror_table.h``
+     * - ``strsignal_table.h``
+     * - ``syscall_list.h``
+     * - ``version.h``
+     * - ``zsr.h``
+
+  as well as syscall headers & sources are now namespaced into the ``zephyr/`` folder. The change is largely
+  automated, and the script can be found in :github:`63973`.
+  For the time being, the compatibility Kconfig (:kconfig:option:`CONFIG_LEGACY_GENERATED_INCLUDE_PATH`)
+  is enabled by default so that downstream applications will continue to compile, a warning message
+  will be generated during CMake configuration time.
+  This Kconfig will be deprecated and eventually removed in the future, developers are advised to
+  update the include paths of these affected headers as soon as possible.
+
 Kernel
 ******
 
@@ -39,17 +73,37 @@ Boards
   :kconfig:option:`CONFIG_I2C` is set. Users who need this setting enabled should set it in
   their project config file. (:github:`73067`)
 
+* LiteX: Renamed the ``compatible`` of the LiteX VexRiscV interrupt controller node from
+  ``vexriscv-intc0`` to :dtcompatible:`litex,vexriscv-intc0`. (:github:`73211`)
+
 Modules
 *******
 
-MbedTLS
-=======
+Mbed TLS
+========
 
-* The hash algorithms SHA-384, SHA-512, MD5 and SHA-1 are not enabled by default anymore.
+* TLS 1.2, RSA, AES, DES, and all the hash algorithms except SHA-256
+  (SHA-224, SHA-384, SHA-512, MD5 and SHA-1) are not enabled by default anymore.
   Their respective Kconfig options now need to be explicitly enabled to be able to use them.
+* The Kconfig options previously named `CONFIG_MBEDTLS_MAC_*_ENABLED` have been renamed.
+  The `_MAC` and `_ENABLED` parts have been removed from their names.
+* The :kconfig:option:`CONFIG_MBEDTLS_HASH_ALL_ENABLED` Kconfig option has been fixed to actually
+  enable all the available hash algorithms. Previously, it used to only enable the SHA-2 ones.
+* The `CONFIG_MBEDTLS_HASH_SHA*_ENABLED` Kconfig options have been removed. They were duplicates
+  of other Kconfig options which are now named `CONFIG_MBEDTLS_SHA*`.
+* The `CONFIG_MBEDTLS_MAC_ALL_ENABLED` Kconfig option has been removed. Its equivalent is the
+  combination of :kconfig:option:`CONFIG_MBEDTLS_HASH_ALL_ENABLED` and :kconfig:option:`CONFIG_MBEDTLS_CMAC`.
 
 MCUboot
 =======
+
+Trusted Firmware-M
+==================
+
+* The default MCUboot signature type has been changed from RSA-3072 to EC-P256.
+  This affects builds that have MCUboot enabled in TF-M (:kconfig:option:`CONFIG_TFM_BL2`).
+  If you wish to keep using RSA-3072, you need to set :kconfig:option:`CONFIG_TFM_MCUBOOT_SIGNATURE_TYPE`
+  to `"RSA-3072"`. Otherwise, make sure to have your own signing keys of the signature type in use.
 
 zcbor
 =====
@@ -114,6 +168,10 @@ Device Drivers and Devicetree
             status = "okay";
         };
     };
+
+* The :dtcompatible:`nxp,kinetis-lptmr` compatible string has been changed to
+  :dtcompatible:`nxp,lptmr`. The old string will be usable for a short time, but
+  should be replaced for it will be removed in the future.
 
 * Some of the driver API structs have been rename to have the required ``_driver_api`` suffix. (:github:`72182`)
   The following types have been renamed:
@@ -379,14 +437,22 @@ Bluetooth Audio
 ===============
 
 * :kconfig:option:`CONFIG_BT_ASCS`, :kconfig:option:`CONFIG_BT_PERIPHERAL` and
-  :kconfig:option:`CONFIG_BT_ISO_PERIPHERAL` are not longer `select`ed automatically when
+  :kconfig:option:`CONFIG_BT_ISO_PERIPHERAL` are no longer enabled automatically when
   enabling :kconfig:option:`CONFIG_BT_BAP_UNICAST_SERVER`, and these must now be set explicitly
   in the project configuration file. (:github:`71993`)
-* The discover callback functions :code:`bt_cap_initiator_cb.unicast_discovery_complete`` and
-  :code:`bt_cap_commander_cb.discovery_complete`` for CAP now contain an additional parameter for
+
+* The discover callback functions :code:`bt_cap_initiator_cb.unicast_discovery_complete` and
+  :code:`bt_cap_commander_cb.discovery_complete` for CAP now contain an additional parameter for
   the set member.
   This needs to be added to all instances of CAP discovery callback functions defined.
   (:github:`72797`)
+
+* :c:func:`bt_bap_stream_start` no longer connects the CIS. To connect the CIS,
+  the :c:func:`bt_bap_stream_connect` shall now be called before :c:func:`bt_bap_stream_start`.
+  (:github:`73032`)
+
+* All occurrences of ``set_sirk`` have been changed to just ``sirk`` as the ``s`` in ``sirk`` stands
+  for set. (:github:`73413`)
 
 Bluetooth Classic
 =================
@@ -470,7 +536,17 @@ Networking
   during a Coap Block-wise transfer. Any post write, validate or some firmware callbacks
   should be updated to include this parameter. (:github:`72590`)
 
+* The DNS resolver and mDNS/LLMNR responders are converted to use socket service API.
+  This means that the number of pollable sockets in the system might need to be increased.
+  Please check that the values of :kconfig:option:`CONFIG_NET_SOCKETS_POLL_MAX` and
+  :kconfig:option:`CONFIG_POSIX_MAX_FDS` are high enough. Unfortunately no exact values
+  for these can be given as it depends on application needs and usage. (:github:`72834`)
 
+* The packet socket (type ``AF_PACKET``) protocol field in ``socket`` API call has changed.
+  The protocol field should be in network byte order so that we are compatible with Linux
+  socket calls. Linux expects the protocol field to be ``htons(ETH_P_ALL)`` if it is desired
+  to receive all the network packets. See details in
+  https://www.man7.org/linux/man-pages/man7/packet.7.html documentation. (:github:`73338`)
 
 Other Subsystems
 ****************
@@ -489,10 +565,10 @@ MCUmgr
 ======
 
 * The support for SHA-256 (when using checksum/hash functions), previously provided
-  by either TinyCrypt or MbedTLS, is now provided by either PSA or MbedTLS.
+  by either TinyCrypt or Mbed TLS, is now provided by either PSA or Mbed TLS.
   PSA is the recommended API going forward, however, if it is not already enabled
   (:kconfig:option:`CONFIG_MBEDTLS_PSA_CRYPTO_CLIENT`) and you have tight code size
-  constraints, you may be able to save 1.3 KB by using MbedTLS instead.
+  constraints, you may be able to save 1.3 KB by using Mbed TLS instead.
 
 Modem
 =====
@@ -529,6 +605,9 @@ Architectures
 *************
 
 * Function :c:func:`arch_start_cpu` has been renamed to :c:func:`arch_cpu_start`. (:github:`64987`)
+
+* ``CONFIG_ARM64_ENABLE_FRAME_POINTER`` is deprecated. Use :kconfig:option:`CONFIG_FRAME_POINTER`
+  instead. (:github:`72646`)
 
 * x86
 

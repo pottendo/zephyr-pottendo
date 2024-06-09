@@ -97,11 +97,6 @@ config BT_ESP32
 	help
 	  Espressif HCI bluetooth interface
 
-config BT_B91
-	bool "Telink B91 HCI driver"
-	help
-	  Telink B91 HCI bluetooth interface
-
 config BT_PSOC6_BLESS
 	bool "PSOC6 BLESS driver"
 	select BT_HCI_SETUP
@@ -130,8 +125,8 @@ config BT_NO_DRIVER
 config BT_AMBIQ_HCI
 	bool "AMBIQ BT HCI driver"
 	select SPI
-	select GPIO
-	select CLOCK_CONTROL
+	select GPIO if SOC_SERIES_APOLLO4X
+	select CLOCK_CONTROL if SOC_SERIES_APOLLO4X
 	select BT_HCI_SETUP
 	help
 	  Supports Ambiq Bluetooth SoC using SPI as the communication protocol.

@@ -24,6 +24,12 @@ LOG_MODULE_REGISTER(llext, CONFIG_LLEXT_LOG_LEVEL);
 #define LLEXT_PAGE_SIZE 32
 #endif
 
+#ifdef CONFIG_LLEXT_EXPORT_BUILTINS_BY_SLID
+#define SYM_NAME_OR_SLID(name, slid) ((const char *)slid)
+#else
+#define SYM_NAME_OR_SLID(name, slid) name
+#endif
+
 K_HEAP_DEFINE(llext_heap, CONFIG_LLEXT_HEAP_SIZE * 1024);
 
 static const char ELF_MAGIC[] = {0x7f, 'E', 'L', 'F'};
@@ -118,11 +124,27 @@ const void *llext_find_sym(const struct llext_symtable *sym_table, const char *s
 {
 	if (sym_table == NULL) {
 		/* Built-in symbol table */
+#ifdef CONFIG_LLEXT_EXPORT_BUILTINS_BY_SLID
+		/* 'sym_name' is actually a SLID to search for */
+		uintptr_t slid = (uintptr_t)sym_name;
+
+		/* TODO: perform a binary search instead of linear.
+		 * Note that - as of writing - the llext_const_symbol_area
+		 * section is sorted in ascending SLID order.
+		 * (see scripts/build/llext_prepare_exptab.py)
+		 */
+		STRUCT_SECTION_FOREACH(llext_const_symbol, sym) {
+			if (slid == sym->slid) {
+				return sym->addr;
+			}
+		}
+#else
 		STRUCT_SECTION_FOREACH(llext_const_symbol, sym) {
 			if (strcmp(sym->name, sym_name) == 0) {
 				return sym->addr;
 			}
 		}
+#endif
 	} else {
 		/* find symbols in module */
 		for (size_t i = 0; i < sym_table->sym_cnt; i++) {
@@ -165,8 +187,7 @@ static int llext_find_tables(struct llext_loader *ldr)
 		}
 
 		LOG_DBG("section %d at %zx: name %d, type %d, flags %zx, addr %zx, size %zd",
-			i,
-			(size_t)ldr->hdr.e_shoff + i * ldr->hdr.e_shentsize,
+			i, pos,
 			shdr.sh_name,
 			shdr.sh_type,
 			(size_t)shdr.sh_flags,
@@ -530,7 +551,8 @@ static int llext_export_symbols(struct llext_loader *ldr, struct llext *ext)
 	return 0;
 }
 
-static int llext_copy_symbols(struct llext_loader *ldr, struct llext *ext)
+static int llext_copy_symbols(struct llext_loader *ldr, struct llext *ext,
+			      bool pre_located)
 {
 	size_t ent_size = ldr->sects[LLEXT_MEM_SYMTAB].sh_entsize;
 	size_t syms_size = ldr->sects[LLEXT_MEM_SYMTAB].sh_size;
@@ -564,16 +586,58 @@ static int llext_copy_symbols(struct llext_loader *ldr, struct llext *ext)
 
 		if ((stt == STT_FUNC || stt == STT_OBJECT) &&
 		    stb == STB_GLOBAL && sect != SHN_UNDEF) {
-			enum llext_mem mem_idx = ldr->sect_map[sect];
 			const char *name = llext_string(ldr, ext, LLEXT_MEM_STRTAB, sym.st_name);
 
 			__ASSERT(j <= sym_tab->sym_cnt, "Miscalculated symbol number %u\n", j);
 
 			sym_tab->syms[j].name = name;
-			sym_tab->syms[j].addr = (void *)((uintptr_t)ext->mem[mem_idx] +
-							 sym.st_value -
-							 (ldr->hdr.e_type == ET_REL ? 0 :
-							  ldr->sects[mem_idx].sh_addr));
+
+			uintptr_t section_addr;
+			void *base;
+
+			if (sect < LLEXT_MEM_BSS) {
+				/*
+				 * This is just a slight optimisation for cached
+				 * sections, we could use the generic path below
+				 * for all of them
+				 */
+				base = ext->mem[ldr->sect_map[sect]];
+				section_addr = ldr->sects[ldr->sect_map[sect]].sh_addr;
+			} else {
+				/* Section header isn't stored, have to read it */
+				size_t shdr_pos = ldr->hdr.e_shoff + sect * ldr->hdr.e_shentsize;
+				elf_shdr_t shdr;
+
+				ret = llext_seek(ldr, shdr_pos);
+				if (ret != 0) {
+					LOG_ERR("failed seeking to position %zu\n", shdr_pos);
+					return ret;
+				}
+
+				ret = llext_read(ldr, &shdr, sizeof(elf_shdr_t));
+				if (ret != 0) {
+					LOG_ERR("failed reading section header at position %zu\n",
+						shdr_pos);
+					return ret;
+				}
+
+				base = llext_peek(ldr, shdr.sh_offset);
+				if (!base) {
+					LOG_ERR("cannot handle arbitrary sections without .peek\n");
+					return -EOPNOTSUPP;
+				}
+
+				section_addr = shdr.sh_addr;
+			}
+
+			if (pre_located) {
+				sym_tab->syms[j].addr = (uint8_t *)sym.st_value +
+					(ldr->hdr.e_type == ET_REL ? section_addr : 0);
+			} else {
+				sym_tab->syms[j].addr = (uint8_t *)base + sym.st_value -
+					(ldr->hdr.e_type == ET_REL ? 0 : section_addr);
+			}
+
 			LOG_DBG("function symbol %d name %s addr %p",
 				j, name, sym_tab->syms[j].addr);
 			j++;
@@ -686,18 +750,14 @@ static void llext_link_plt(struct llext_loader *ldr, struct llext *ext,
 
 		switch (stb) {
 		case STB_GLOBAL:
-			link_addr = llext_find_sym(NULL, name);
+			link_addr = llext_find_sym(NULL,
+				SYM_NAME_OR_SLID(name, sym_tbl.st_value));
 
 			if (!link_addr)
 				link_addr = llext_find_sym(&ext->sym_tab, name);
 
 			if (!link_addr) {
 				LOG_WRN("PLT: cannot find idx %u name %s", j, name);
-				continue;
-			}
-
-			if (!rela.r_offset) {
-				LOG_WRN("PLT: zero offset idx %u name %s", j, name);
 				continue;
 			}
 
@@ -827,7 +887,8 @@ static int llext_link(struct llext_loader *ldr, struct llext *ext, bool do_local
 				link_addr = 0;
 			} else if (sym.st_shndx == SHN_UNDEF) {
 				/* If symbol is undefined, then we need to look it up */
-				link_addr = (uintptr_t)llext_find_sym(NULL, name);
+				link_addr = (uintptr_t)llext_find_sym(NULL,
+					SYM_NAME_OR_SLID(name, sym.st_value));
 
 				if (link_addr == 0) {
 					LOG_ERR("Undefined symbol with no entry in "
@@ -837,18 +898,37 @@ static int llext_link(struct llext_loader *ldr, struct llext *ext, bool do_local
 				} else {
 					LOG_INF("found symbol %s at 0x%lx", name, link_addr);
 				}
-			} else if (ELF_ST_TYPE(sym.st_info) == STT_SECTION ||
-				   ELF_ST_TYPE(sym.st_info) == STT_FUNC ||
-				   ELF_ST_TYPE(sym.st_info) == STT_OBJECT) {
-				/* Link address is relative to the start of the section */
+			} else if (sym.st_shndx == SHN_ABS) {
+				/* Absolute symbol */
+				link_addr = sym.st_value;
+			} else if ((sym.st_shndx < ldr->hdr.e_shnum) &&
+				!IN_RANGE(sym.st_shndx, SHN_LORESERVE, SHN_HIRESERVE)) {
+				/* This check rejects all relocations whose target symbol
+				 * has a section index higher than the maximum possible
+				 * in this ELF file, or belongs in the reserved range:
+				 * they will be caught by the `else` below and cause an
+				 * error to be returned. This aborts the LLEXT's loading
+				 * and prevents execution of improperly relocated code,
+				 * which is dangerous.
+				 *
+				 * Note that the unsupported SHN_COMMON section is rejected
+				 * as part of this check. Also note that SHN_ABS would be
+				 * rejected as well, but we want to handle it properly:
+				 * for this reason, this check must come AFTER handling
+				 * the case where the symbol's section index is SHN_ABS!
+				 *
+				 *
+				 * For regular symbols, the link address is obtained by
+				 * adding st_value to the start address of the section
+				 * in which the target symbol resides.
+				 */
 				link_addr = (uintptr_t)ext->mem[ldr->sect_map[sym.st_shndx]]
 					+ sym.st_value;
-
-				LOG_INF("found section symbol %s addr 0x%lx", name, link_addr);
 			} else {
-				/* Nothing to relocate here */
-				LOG_DBG("not relocated");
-				continue;
+				LOG_ERR("rela section %d, entry %d: cannot apply relocation: "
+					"target symbol has unexpected section index %d (0x%X)",
+					i, j, sym.st_shndx, sym.st_shndx);
+				return -ENOEXEC;
 			}
 
 			LOG_INF("writing relocation symbol %s type %zd sym %zd at addr 0x%lx "
@@ -954,7 +1034,7 @@ static int do_llext_load(struct llext_loader *ldr, struct llext *ext,
 	}
 
 	LOG_DBG("Copying symbols...");
-	ret = llext_copy_symbols(ldr, ext);
+	ret = llext_copy_symbols(ldr, ext, ldr_parm ? ldr_parm->pre_located : false);
 	if (ret != 0) {
 		LOG_ERR("Failed to copy symbols, ret %d", ret);
 		goto out;

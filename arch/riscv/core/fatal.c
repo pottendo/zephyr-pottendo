@@ -107,7 +107,7 @@ FUNC_NORETURN void z_riscv_fatal_error_csf(unsigned int reason, const z_arch_esf
 		LOG_ERR("");
 	}
 
-	if (IS_ENABLED(CONFIG_RISCV_EXCEPTION_STACK_TRACE)) {
+	if (IS_ENABLED(CONFIG_EXCEPTION_STACK_TRACE) && (esf != NULL)) {
 		z_riscv_unwind_stack(esf);
 	}
 
@@ -263,6 +263,6 @@ static void z_vrfy_user_fault(unsigned int reason)
 	z_impl_user_fault(reason);
 }
 
-#include <syscalls/user_fault_mrsh.c>
+#include <zephyr/syscalls/user_fault_mrsh.c>
 
 #endif /* CONFIG_USERSPACE */

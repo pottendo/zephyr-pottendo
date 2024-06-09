@@ -345,6 +345,7 @@ config OVERRIDE_FRAME_POINTER_DEFAULT
 
 config OMIT_FRAME_POINTER
 	bool "Omit frame pointer"
+	depends on !FRAME_POINTER
 	depends on OVERRIDE_FRAME_POINTER_DEFAULT
 	help
 	  Choose Y for best performance. On some architectures (including x86)
@@ -381,9 +382,9 @@ config SYMTAB
 config EXCEPTION_STACK_TRACE
 	bool "Attempt to print stack traces upon exceptions"
 	default y
-	depends on PRINTK
-	depends on DEBUG_INFO
-	depends on !OMIT_FRAME_POINTER
+	depends on (X86_EXCEPTION_STACK_TRACE || \
+		    ARM64_EXCEPTION_STACK_TRACE || \
+		    RISCV_EXCEPTION_STACK_TRACE)
 	help
 	  If the architecture fatal handling code supports it, attempt to
 	  print a stack trace of function memory addresses when an

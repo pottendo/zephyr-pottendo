@@ -27,7 +27,7 @@
 #include <signal.h>
 #include <semaphore.h>
 #include <time.h>
-
+#include <cstdint>
 typedef struct { uint16_t x; uint16_t y; } point_t;
 
 template <typename myDOUBLE>
