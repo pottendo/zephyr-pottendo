@@ -35,6 +35,10 @@ https://docs.zephyrproject.org/latest/security/vulnerabilities.html
 
 * CVE-2024-4785: Under embargo until 2024-08-07
 
+* CVE-2024-5754: Under embargo until 2024-09-04
+
+* CVE-2024-5931: Under embargo until 2024-09-10
+
 API Changes
 ***********
 
@@ -238,6 +242,8 @@ Build system and Infrastructure
     choice to select the C Standard version. Additionally subsystems can select a minimum
     required C Standard version, with for example :kconfig:option:`CONFIG_REQUIRES_STD_C11`.
 
+  * Fixed issue with passing UTF-8 configs to applications using sysbuild.
+
 Drivers and Sensors
 *******************
 
@@ -302,8 +308,8 @@ Drivers and Sensors
 
 * eSPI
 
-  * Renamed eSPI virtual wire direction macros and enum values to match the new terminology in
-    eSPI 1.5 specification.
+  * Renamed eSPI virtual wire direction macros, enum values and KConfig to match the new
+    terminology in eSPI 1.5 specification.
 
 * Ethernet
 
@@ -338,6 +344,11 @@ Drivers and Sensors
 
   * The ``chain-length`` and ``color-mapping`` properties have been added to all LED strip
     bindings.
+
+
+* LoRa
+
+  * Added driver for Reyax LoRa module
 
 * MDIO
 
@@ -449,6 +460,11 @@ Networking
 
   * Removed IPSP support. ``CONFIG_NET_L2_BT`` does not exist anymore.
 
+* TCP:
+
+  * ISN generation now uses SHA-256 instead of MD5. Moreover it now relies on PSA APIs
+    instead of legacy Mbed TLS functions for hash computation.
+
 USB
 ***
 
@@ -508,6 +524,17 @@ Libraries / Subsystems
 
   * Mbed TLS was updated to 3.6.0. Release notes can be found at:
     https://github.com/Mbed-TLS/mbedtls/releases/tag/v3.6.0
+  * When any PSA crypto provider is available in the system
+    (:kconfig:option:`CONFIG_MBEDTLS_PSA_CRYPTO_CLIENT` is enabled), desired PSA features
+    must now be explicitly selected through ``CONFIG_PSA_WANT_xxx`` symbols.
+  * Choice symbols :kconfig:option:`CONFIG_MBEDTLS_PSA_CRYPTO_LEGACY_RNG` and
+    :kconfig:option:`CONFIG_MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG` were added in order
+    to allow the user to specify how Mbed TLS PSA crypto core should generate random numbers.
+    The former option, which is the default, relies on legacy entropy and CTR_DRBG/HMAC_DRBG
+    modules, while the latter relies on CSPRNG drivers.
+  * :kconfig:option:`CONFIG_MBEDTLS_PSA_P256M_DRIVER_ENABLED` enables support
+    for the Mbed TLS's p256-m driver PSA crypto library. This is a Cortex-M SW
+    optimized implementation of secp256r1 curve.
 
 * Random
 
