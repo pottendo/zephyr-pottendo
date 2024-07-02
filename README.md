@@ -5,11 +5,12 @@ Look [here][2] for general information about *Zephyr*.
 This project relies on bitstreams (FPGA firmware) for the [OrangeCart][4] from [this][3] project.
 
 This adds 3 more 'boards' to Zephyr RTOS:
-- Orangecart: use `-b orangecard` for builds with `west` (RVCop64 original bitstream)
-- Orangecart FPU support: use `-b orangecard_fpu` for builds with `west` (requires 'RVCop64-scfp' bitstream from [here][3])
-- Orangecart SMP (DualCore): use `-b orangecard_smp` for builds with `west` (requires 'RVCop64-dc' bitstream from [here][3])  
+- Orangecart: use `-b orangecard/VexRV32` for builds with `west` (RVCop64 original bitstream)
+- Orangecart FPU support: use `-b orangecart/VexRV32SMP/fpu` for builds with `west` (requires 'RVCop64-scfp' bitstream from [here][3])
+- Orangecart SMP (DualCore): use `-b orangecart/VexRV32SMP/smp` for builds with `west` (requires 'RVCop64-dc' bitstream from [here][3])  
+- Orangecart IMA instructionset on vexriscv_smp CPU: use `-b orangecart/VexRV32SMP/ima` for builds with `west` (requires 'RVCop64-dc' bitstream from [here][3])  
   
-## Devevelopment Environment
+## Development Environment
 
 Checkout this repo to your favorite local destination and follow the instructions on [Zephyr][1] to setup the local development environment. 
 
