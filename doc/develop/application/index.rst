@@ -131,7 +131,7 @@ Zephyr repository application
 
 An application located within the ``zephyr`` source code repository in a Zephyr
 :ref:`west workspace <west-workspaces>` is referred to as a Zephyr repository
-application. In the following example, the :ref:`hello_world sample
+application. In the following example, the :zephyr:code-sample:`hello_world sample
 <hello_world>` is a Zephyr repository application:
 
 .. code-block:: none
@@ -802,7 +802,7 @@ As an example, let's build the Hello World sample for the ``reel_board``:
 
 .. zephyr-app-commands::
    :tool: all
-   :app: samples/hello_world
+   :zephyr-app: samples/hello_world
    :board: reel_board
    :goals: build
 
@@ -820,7 +820,7 @@ Using CMake directly:
 
 .. zephyr-app-commands::
    :tool: cmake
-   :app: samples/hello_world
+   :zephyr-app: samples/hello_world
    :generator: make
    :host-os: unix
    :board: reel_board

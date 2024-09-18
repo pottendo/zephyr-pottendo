@@ -35,6 +35,18 @@ LOG_MODULE_REGISTER(net_mdns_responder, CONFIG_MDNS_RESPONDER_LOG_LEVEL);
 
 #include "net_private.h"
 
+/*
+ * GCC complains about struct sockaddr accesses due to the various
+ * address-family-specific variants being of differing sizes. Let's not
+ * mess with code (which looks correct), just silence the compiler.
+ */
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+#endif
+
 extern void dns_dispatcher_svc_handler(struct k_work *work);
 
 #define MDNS_LISTEN_PORT 5353
@@ -677,6 +689,13 @@ static int register_dispatcher(struct mdns_responder_context *ctx,
 	ctx->dispatcher.svc = svc;
 	ctx->dispatcher.mdns_ctx = ctx;
 	ctx->dispatcher.pair = NULL;
+
+	/* Mark the fd so that "net sockets" can show it. This is needed if there
+	 * is already a socket bound to same port and the dispatcher will mux
+	 * the connections. Without this, the FD in "net sockets" services list will
+	 * show the socket descriptor value as -1.
+	 */
+	svc->pev[0].event.fd = ctx->sock;
 
 	if (IS_ENABLED(CONFIG_NET_IPV6) && local->sa_family == AF_INET6) {
 		memcpy(&ctx->dispatcher.local_addr, local,

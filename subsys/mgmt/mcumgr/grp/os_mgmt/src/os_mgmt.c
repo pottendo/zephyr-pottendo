@@ -450,6 +450,17 @@ os_mgmt_bootloader_info(struct smp_streamer *ctxt)
 	size_t decoded;
 	bool ok;
 
+#if defined(CONFIG_MCUMGR_GRP_OS_BOOTLOADER_INFO_HOOK)
+	enum mgmt_cb_return status;
+	int32_t err_rc;
+	uint16_t err_group;
+	struct os_mgmt_bootloader_info_data bootloader_info_data = {
+		.zse = zse,
+		.decoded = &decoded,
+		.query = &query
+	};
+#endif
+
 	struct zcbor_map_decode_key_val bootloader_info[] = {
 		ZCBOR_MAP_DECODE_KEY_DECODER("query", zcbor_tstr_decode, &query),
 	};
@@ -457,6 +468,21 @@ os_mgmt_bootloader_info(struct smp_streamer *ctxt)
 	if (zcbor_map_decode_bulk(zsd, bootloader_info, ARRAY_SIZE(bootloader_info), &decoded)) {
 		return MGMT_ERR_EINVAL;
 	}
+
+#if defined(CONFIG_MCUMGR_GRP_OS_BOOTLOADER_INFO_HOOK)
+	status = mgmt_callback_notify(MGMT_EVT_OP_OS_MGMT_BOOTLOADER_INFO, &bootloader_info_data,
+				      sizeof(bootloader_info_data), &err_rc, &err_group);
+
+	if (status != MGMT_CB_OK) {
+		if (status == MGMT_CB_ERROR_RC) {
+			return err_rc;
+		}
+
+		ok = smp_add_cmd_err(zse, err_group, (uint16_t)err_rc);
+
+		return ok ? MGMT_ERR_EOK : MGMT_ERR_EMSGSIZE;
+	}
+#endif
 
 	/* If no parameter is recognized then just introduce the bootloader. */
 	if (decoded == 0) {
@@ -836,7 +862,7 @@ static int os_mgmt_datetime_read(struct smp_streamer *ctxt)
 
 	sprintf(date_string, "%4d-%02d-%02dT%02d:%02d:%02d"
 #ifdef CONFIG_MCUMGR_GRP_OS_DATETIME_MS
-		".%d"
+		".%03d"
 #endif
 		, (uint16_t)(current_time.tm_year + RTC_DATETIME_YEAR_OFFSET),
 		(uint8_t)(current_time.tm_mon + RTC_DATETIME_MONTH_OFFSET),
@@ -1076,6 +1102,9 @@ static struct mgmt_group os_mgmt_group = {
 	.mg_group_id = MGMT_GROUP_ID_OS,
 #ifdef CONFIG_MCUMGR_SMP_SUPPORT_ORIGINAL_PROTOCOL
 	.mg_translate_error = os_mgmt_translate_error_code,
+#endif
+#ifdef CONFIG_MCUMGR_GRP_ENUM_DETAILS_NAME
+	.mg_group_name = "os mgmt",
 #endif
 };
 
