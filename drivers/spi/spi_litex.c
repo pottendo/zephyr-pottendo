@@ -71,12 +71,12 @@ static int spi_config(const struct device *dev, const struct spi_config *config,
 
 	if (config->operation & SPI_CS_ACTIVE_HIGH) {
 		LOG_ERR("CS active high not supported");
-		return -ENOTSUP;
+		//return -ENOTSUP;
 	}
 
 	if (config->operation & SPI_LOCK_ON) {
 		LOG_ERR("Lock On not supported");
-		return -ENOTSUP;
+		//return -ENOTSUP;
 	}
 
 	if (IS_ENABLED(CONFIG_SPI_EXTENDED_MODES) &&
