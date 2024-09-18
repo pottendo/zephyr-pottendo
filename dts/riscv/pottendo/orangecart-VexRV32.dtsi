@@ -44,7 +44,7 @@
 		};
 
 		uart0: serial@f0001000 {
-			compatible = "litex,uart0";
+			compatible = "litex,uart";
 			interrupt-parent = <&intc0>;
 			interrupts = <2 7>;
 			reg = <0xf0001000 0x4
@@ -68,7 +68,7 @@
 		};
 
 		uart1: serial@f0004800 {
-			compatible = "litex,uart0";
+			compatible = "litex,uart";
 			interrupt-parent = <&intc0>;
 			interrupts = <0x3 7>;
 			reg = <0xf0004800 0x4

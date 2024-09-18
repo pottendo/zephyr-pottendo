@@ -78,9 +78,9 @@ static void vexriscv_litex_irq_handler(const void *device)
 		ite = &_sw_isr_table[UART0_IRQ];
 		ite->isr(ite->arg);
 	}
-#if (DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(uart1), litex_uart0, okay) || \
-	 DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(liteuart1), litex_uart0, okay))
-#define UART1_IRQ		DT_IRQN(DT_INST(1, litex_uart0))
+#if (DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(uart1), litex_uart, okay) || \
+	 DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(liteuart1), litex_uart, okay))
+#define UART1_IRQ		DT_IRQN(DT_INST(1, litex_uart))
 	if (irqs & (1 << UART1_IRQ)) {
 		ite = &_sw_isr_table[UART1_IRQ];
 		ite->isr(ite->arg);
