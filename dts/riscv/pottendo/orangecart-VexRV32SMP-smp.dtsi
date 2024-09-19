@@ -150,7 +150,7 @@
             liteuart0: serial@f0001000 {
                 compatible = "litex,uart";
                 interrupt-parent = <&intc0>;
-                interrupts = <2 7>;
+                interrupts = <1 7>;
                 reg = <0xf0001000 0x4
                     0xf0001004 0x4
                     0xf0001008 0x4
