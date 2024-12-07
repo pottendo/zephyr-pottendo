@@ -93,3 +93,5 @@ Nits.txt
 Pylint.txt
 SphinxLint.txt
 YAMLLint.txt
+samples/mandelbrot/mandel-f-cons
+samples/mandelbrot/mandel-f-cons2

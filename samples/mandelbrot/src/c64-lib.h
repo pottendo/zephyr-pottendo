@@ -30,20 +30,22 @@ namespace VIC
 	   ORANGE, BROWN, PINK, DARK_GREY, GREY, LIGHT_GREEN, LIGHT_BLUE, LIGHT_GREY };
 };
 
-class c64
+class c64_t
 {
-#ifdef CONFIG_BOARD_ORANGECART // Fixme: should be done via DTS query
-    const uint32_t c64_physaddress = 0x00000000;  // as defined in basesoc.py, RVCop64
-#else
+#ifdef CONFIG_BOARD_ORANGECART_VexRV32 // Fixme: should be done via DTS query
+    const uint32_t c64_physaddress = 0x00000000;  // as defined in basesoc.py, RVCop64 
+    typedef uint32_t off_t;
+#elif defined(CONFIG_BOARD_ORANGECART_VexRV32SMP_FPU) || defined (CONFIG_BOARD_ORANGECART_VexRV32SMP_SMP) || defined (CONFIG_BOARD_ORANGECART_VexRV32SMP_IMA)
     const uint32_t c64_physaddress = 0x0f000000;  // as defined in basesoc.py, RVCop64
+    typedef uint32_t off_t;
 #endif    
     
     unsigned char *map_memory(off_t addr, size_t len);
     unsigned char *mem, *vic, *cia1, *cia2, *sid, *oc_ctrl;
 
   public:
-    c64();
-    ~c64();
+    c64_t();
+    ~c64_t();
 
     unsigned char *get_mem(void) { return mem; }
     void gfx(c64_consts bank, c64_consts mode, uint8_t vram);
@@ -51,4 +53,6 @@ class c64
 
 };
 
+extern void c64_hook1(void);
+extern void c64_hook2(void);
 #endif /* __c64_linux_h__ */

@@ -12,19 +12,19 @@
 // 	$Log$
 //
 #include <stdio.h>
-
 #ifndef __ZEPHYR__
 #include <fcntl.h>
 #include <sys/mman.h>
 #endif
 
-#define log_msg printf
+#include "mandel-arch.h"
 
 #include <unistd.h>
 #include <iostream>
+#include <cstring>
 #include "c64-lib.h"
 
-c64::c64()
+c64_t::c64_t()
 {
     mem = vic = cia1 = cia2 = sid = oc_ctrl = nullptr;
     mem = map_memory(c64_physaddress, 0x10000);
@@ -40,7 +40,7 @@ c64::c64()
     }
 }
 
-c64::~c64()
+c64_t::~c64_t()
 {
     gfx(VICBank0, VICModeText, 1);
 #ifndef __ZEPHYR__
@@ -48,7 +48,7 @@ c64::~c64()
 #endif    
 }
 
-void c64::gfx(c64_consts bank, c64_consts mode, uint8_t vram)
+void c64_t::gfx(c64_consts bank, c64_consts mode, uint8_t vram)
 {
     if (!vic)
     {
@@ -83,7 +83,7 @@ void c64::gfx(c64_consts bank, c64_consts mode, uint8_t vram)
 }
 
 unsigned char *
-c64::map_memory(off_t offset, size_t len)
+c64_t::map_memory(off_t offset, size_t len)
 {
 #ifndef __ZEPHYR__
     // Truncate offset to a multiple of the page size, or mmap will fail.
@@ -102,4 +102,40 @@ c64::map_memory(off_t offset, size_t len)
     mem = (unsigned char *)offset;
 #endif    
     return mem;
+}
+
+/* globals */
+c64_t c64;
+int col1, col2, col3;
+char *c64_stack = (char *)0x10000000; // fast SRAM on Orangecart, only 16k! so NO_THREADS <= 16;
+
+void c64_screen_init(void)
+{
+    std::cout << "C64 memory @0x" << std::hex << int(c64.get_mem()) << std::dec << '\n';
+    c64.screencols(VIC::BLACK, VIC::BLACK);
+    c64.gfx(VICBank1, VICModeGfxMC, 15);
+    // xrat = 16.0 / 9.0;
+    col1 = 0xb;
+    col2 = 0xc;
+    col3 = 14; // VIC::LIGHT_BLUE;
+}
+
+void c64_hook1(void)
+{
+        memset(&c64.get_mem()[0x3c00], (col1 << 4) | col2, 1000);
+        memset(&c64.get_mem()[0xd800], col3, 1000);
+}
+
+void c64_hook2(void)
+{
+        col1++; col2++; col3++;
+        col1 %= 0xf;
+        if (col1 == 0)
+            col1++;
+        col2 %= 0xf;
+        if (col2 == 0)
+            col2++;
+        col3 %= 0xf;
+        if (col3 == 0)
+            col3++;
 }
