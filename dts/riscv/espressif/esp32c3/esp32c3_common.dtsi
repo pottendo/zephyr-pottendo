@@ -80,9 +80,16 @@
 		compatible = "simple-bus";
 		ranges;
 
-		sram0: memory@3fc7c000 {
-			compatible = "mmio-sram";
-			reg = <0x3fc7c000 0x50000>;
+		sram0: memory@40370000 {
+			compatible = "zephyr,memory-region", "mmio-sram";
+			reg = <0x40370000 DT_SIZE_K(16)>;
+			zephyr,memory-region = "SRAM0";
+		};
+
+		sram1: memory@3fc80000 {
+			compatible = "zephyr,memory-region", "mmio-sram";
+			reg = <0x3fc80000 DT_SIZE_K(384)>;
+			zephyr,memory-region = "SRAM1";
 		};
 
 		intc: interrupt-controller@600c2000 {
@@ -138,9 +145,9 @@
 
 			flash0: flash@0 {
 				compatible = "soc-nv-flash";
-				reg = <0 0x400000>;
 				erase-block-size = <4096>;
 				write-block-size = <4>;
+				/* Flash size is specified in SOC/SIP dtsi */
 			};
 		};
 

@@ -40,7 +40,7 @@ NET_BUF_POOL_FIXED_DEFINE(discardable_pool, CONFIG_BT_BUF_EVT_DISCARDABLE_COUNT,
 			  sizeof(struct bt_buf_data), NULL);
 
 #if defined(CONFIG_BT_HCI_ACL_FLOW_CONTROL)
-NET_BUF_POOL_DEFINE(acl_in_pool, CONFIG_BT_BUF_ACL_RX_COUNT,
+NET_BUF_POOL_DEFINE(acl_in_pool, BT_BUF_ACL_RX_COUNT,
 		    BT_BUF_ACL_SIZE(CONFIG_BT_BUF_ACL_RX_SIZE),
 		    sizeof(struct acl_data), bt_hci_host_num_completed_packets);
 
@@ -158,7 +158,7 @@ struct net_buf *bt_buf_make_view(struct net_buf *view,
 
 	__ASSERT_NO_MSG(!bt_buf_has_view(parent));
 
-	LOG_DBG("make-view %p viewsize %u meta %p", view, len, meta);
+	LOG_DBG("make-view %p viewsize %zu meta %p", view, len, meta);
 
 	net_buf_simple_clone(&parent->b, &view->b);
 	view->size = net_buf_headroom(parent) + len;

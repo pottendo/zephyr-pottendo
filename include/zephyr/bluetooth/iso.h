@@ -34,6 +34,7 @@
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/slist.h>
 #include <zephyr/sys/util_macro.h>
+#include <zephyr/sys/slist.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -139,6 +140,14 @@ extern "C" {
 #define BT_ISO_PTO_MIN              0x00U
 /** Maximum pre-transmission offset */
 #define BT_ISO_PTO_MAX              0x0FU
+
+/**
+ * @brief Check if ISO BIS bitfield is valid (BT_ISO_BIS_INDEX_BIT(1)|..|BT_ISO_BIS_INDEX_BIT(31))
+ *
+ * @param _bis_bitfield BIS index bitfield (uint32)
+ */
+#define BT_ISO_VALID_BIS_BITFIELD(_bis_bitfield)                                                   \
+	((_bis_bitfield) != 0U && (_bis_bitfield) <= BIT_MASK(BT_ISO_BIS_INDEX_MAX))
 
 /**
  * @brief Life-span states of ISO channel. Used only by internal APIs dealing with setting channel
@@ -1093,6 +1102,42 @@ int bt_iso_chan_get_info(const struct bt_iso_chan *chan, struct bt_iso_info *inf
  * @return Zero on success or (negative) error code on failure.
  */
 int bt_iso_chan_get_tx_sync(const struct bt_iso_chan *chan, struct bt_iso_tx_info *info);
+
+/**
+ * @brief Struct to hold the Broadcast Isochronous Group callbacks
+ *
+ * These can be registered for usage with bt_iso_big_register_cb().
+ */
+struct bt_iso_big_cb {
+	/**
+	 * @brief The BIG has started and all of the streams are ready for data
+	 *
+	 * @param big The started BIG
+	 */
+	void (*started)(struct bt_iso_big *big);
+
+	/**
+	 * @brief The BIG has stopped and none of the streams are ready for data
+	 *
+	 * @param big The stopped BIG
+	 * @param reason The reason why the BIG stopped (see the BT_HCI_ERR_* values)
+	 */
+	void (*stopped)(struct bt_iso_big *big, uint8_t reason);
+
+	/** @internal Internally used field for list handling */
+	sys_snode_t _node;
+};
+
+/**
+ * @brief Registers callbacks for Broadcast Sources
+ *
+ * @param cb Pointer to the callback structure.
+ *
+ * @retval 0 on success
+ * @retval -EINVAL if @p cb is NULL
+ * @retval -EEXIST if @p cb is already registered
+ */
+int bt_iso_big_register_cb(struct bt_iso_big_cb *cb);
 
 /**
  * @brief Creates a BIG as a broadcaster

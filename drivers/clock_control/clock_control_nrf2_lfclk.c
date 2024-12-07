@@ -19,7 +19,7 @@ BUILD_ASSERT(DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT) == 1,
 #define LFCLK_LFXO_NODE DT_INST_PHANDLE_BY_NAME(0, clocks, lfxo)
 #define LFCLK_HFXO_NODE DT_INST_PHANDLE_BY_NAME(0, clocks, hfxo)
 
-#define LFCLK_HAS_LFXO DT_NODE_HAS_STATUS(LFCLK_LFXO_NODE, okay)
+#define LFCLK_HAS_LFXO DT_NODE_HAS_STATUS_OKAY(LFCLK_LFXO_NODE)
 
 #define LFCLK_LFLPRC_ACCURACY DT_INST_PROP(0, lflprc_accuracy_ppm)
 #define LFCLK_LFRC_ACCURACY DT_INST_PROP(0, lfrc_accuracy_ppm)
@@ -241,7 +241,7 @@ static int lfclk_init(const struct device *dev)
 				 lfclk_work_handler);
 }
 
-static struct nrf_clock_control_driver_api lfclk_drv_api = {
+static DEVICE_API(nrf_clock_control, lfclk_drv_api) = {
 	.std_api = {
 		.on = api_nosys_on_off,
 		.off = api_nosys_on_off,

@@ -61,7 +61,7 @@ The key features of the EK-RA8D1 board are categorized in three groups as follow
 - 512 Mb (64 MB) External Octo-SPI Flash (present in the MCU Native Pin Access area of the EK-RA8D1 board)
 - CAN FD (3-pin header)
 
-.. figure:: ek-ra8d1-board.jpg
+.. figure:: ek_ra8d1.jpg
 	:align: center
 	:alt: RA8D1 Evaluation Kit
 
@@ -71,7 +71,7 @@ Hardware
 ********
 Detail Hardware feature for the RA8D1 MCU group can be found at `RA8D1 Group User's Manual Hardware`_
 
-.. figure:: ra8d1-block-diagram.png
+.. figure:: ra8d1_block_diagram.png
 	:width: 442px
 	:align: center
 	:alt: RA8D1 MCU group feature
@@ -104,6 +104,26 @@ The below features are currently supported on Zephyr OS for EK-RA8D1 board:
 +--------------+------------+------------------+
 | FLASH        | on-chip    | flash            |
 +--------------+------------+------------------+
+| PWM          | on-chip    | pwm              |
++--------------+------------+------------------+
+| COUNTER      | on-chip    | counter          |
++--------------+------------+------------------+
+| CAN          | on-chip    | canfd            |
++--------------+------------+------------------+
+| I2C          | on-chip    | i2c              |
++--------------+------------+------------------+
+| ETHERNET     | on-chip    | ethernet         |
++--------------+------------+------------------+
+
+**Note:** for using Ethernet on RA8D1 board please set switch SW1 as following configuration:
+
++-------------+-------------+--------------+------------+------------+------------+-------------+-----------+
+| SW1-1 PMOD1 | SW1-2 TRACE | SW1-3 CAMERA | SW1-4 ETHA | SW1-5 ETHB | SW1-6 GLCD | SW1-7 SDRAM | SW1-8 I3C |
++-------------+-------------+--------------+------------+------------+------------+-------------+-----------+
+|     OFF     |      OFF    |      OFF     |     OFF    |     ON     |      OFF   |      OFF    |     OFF   |
++-------------+-------------+--------------+------------+------------+------------+-------------+-----------+
+
+**CAUTION:** Do not enable SW1-4 and SW1-5 together
 
 Other hardware features are currently not supported by the port.
 

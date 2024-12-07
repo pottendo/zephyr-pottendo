@@ -17,15 +17,19 @@
 #include <zephyr/sys/__assert.h>
 #include <zephyr/drivers/clock_control/stm32_clock_control.h>
 #include "clock_stm32_ll_common.h"
-#include "clock_stm32_ll_mco.h"
 #include "stm32_hsem.h"
 
 /* Macros to fill up prescaler values */
 #define z_hsi_divider(v) LL_RCC_HSI_DIV_ ## v
 #define hsi_divider(v) z_hsi_divider(v)
 
+#if defined(LL_RCC_HCLK_DIV_1)
+#define fn_ahb_prescaler(v) LL_RCC_HCLK_DIV_ ## v
+#define ahb_prescaler(v) fn_ahb_prescaler(v)
+#else
 #define fn_ahb_prescaler(v) LL_RCC_SYSCLK_DIV_ ## v
 #define ahb_prescaler(v) fn_ahb_prescaler(v)
+#endif
 
 #define fn_apb1_prescaler(v) LL_RCC_APB1_DIV_ ## v
 #define apb1_prescaler(v) fn_apb1_prescaler(v)
@@ -493,7 +497,7 @@ static enum clock_control_status stm32_clock_control_get_status(const struct dev
 	}
 }
 
-static const struct clock_control_driver_api stm32_clock_control_api = {
+static DEVICE_API(clock_control, stm32_clock_control_api) = {
 	.on = stm32_clock_control_on,
 	.off = stm32_clock_control_off,
 	.get_rate = stm32_clock_control_get_subsys_rate,
@@ -537,7 +541,7 @@ static void set_up_plls(void)
 	 */
 	if (LL_RCC_GetSysClkSource() == LL_RCC_SYS_CLKSOURCE_STATUS_PLL) {
 		stm32_clock_switch_to_hsi();
-		LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
+		LL_RCC_SetAHBPrescaler(ahb_prescaler(1));
 	}
 	LL_RCC_PLL_Disable();
 
@@ -800,9 +804,9 @@ int stm32_clock_control_init(const struct device *dev)
 	set_up_plls();
 
 	if (DT_PROP(DT_NODELABEL(rcc), undershoot_prevention) &&
-		(STM32_CORE_PRESCALER == LL_RCC_SYSCLK_DIV_1) &&
+		(ahb_prescaler(STM32_CORE_PRESCALER) == ahb_prescaler(1)) &&
 		(MHZ(80) < CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC)) {
-		LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_2);
+		LL_RCC_SetAHBPrescaler(ahb_prescaler(2));
 	} else {
 		LL_RCC_SetAHBPrescaler(ahb_prescaler(STM32_CORE_PRESCALER));
 	}
@@ -827,7 +831,7 @@ int stm32_clock_control_init(const struct device *dev)
 #endif /* STM32_SYSCLK_SRC_... */
 
 	if (DT_PROP(DT_NODELABEL(rcc), undershoot_prevention) &&
-		(STM32_CORE_PRESCALER == LL_RCC_SYSCLK_DIV_1) &&
+		(ahb_prescaler(STM32_CORE_PRESCALER) == ahb_prescaler(1)) &&
 		(MHZ(80) < CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC)) {
 		LL_RCC_SetAHBPrescaler(ahb_prescaler(STM32_CORE_PRESCALER));
 	}
@@ -864,9 +868,6 @@ int stm32_clock_control_init(const struct device *dev)
 #if DT_NODE_HAS_PROP(DT_NODELABEL(rcc), adc34_prescaler)
 	LL_RCC_SetADCClockSource(adc34_prescaler(STM32_ADC34_PRESCALER));
 #endif
-
-	/* configure MCO1/MCO2 based on Kconfig */
-	stm32_clock_control_mco_init();
 
 	return 0;
 }

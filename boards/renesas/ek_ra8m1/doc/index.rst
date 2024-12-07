@@ -61,7 +61,7 @@ The key features of the EK-RA8M1 board are categorized in three groups as follow
 - 512 Mb (64 MB) External Octo-SPI Flash (present in the MCU Native Pin Access area of the EK-RA8M1 board)
 - CAN FD (3-pin header)
 
-.. figure:: ek-ra8m1-board.jpg
+.. figure:: ek_ra8m1.jpg
 	:align: center
 	:alt: RA8M1 Evaluation Kit
 
@@ -71,7 +71,7 @@ Hardware
 ********
 Detail Hardware feature for the RA8M1 MCU group can be found at `RA8M1 Group User's Manual Hardware`_
 
-.. figure:: ra8m1-block-diagram.jpg
+.. figure:: ra8m1_block_diagram.jpg
 	:width: 442px
 	:align: center
 	:alt: RA8M1 MCU group feature
@@ -106,6 +106,16 @@ The below features are currently supported on Zephyr OS for EK-RA8M1 board:
 +-----------+------------+----------------------+
 | FLASH     | on-chip    | flash                |
 +-----------+------------+----------------------+
+| PWM       | on-chip    | pwm                  |
++-----------+------------+----------------------+
+| COUNTER   | on-chip    | counter              |
++-----------+------------+----------------------+
+| CAN       | on-chip    | canfd                |
++-----------+------------+----------------------+
+| ETHERNET  | on-chip    | ethernet             |
++-----------+------------+----------------------+
+
+**Note:** For using Ethernet module on EK-RA8M1, remove jumper J61 to enable Ethernet B
 
 Other hardware features are currently not supported by the port.
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 Nordic Semiconductor ASA
+ * Copyright (c) 2021-2024 Nordic Semiconductor ASA
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -22,6 +22,7 @@
 #include <zephyr/net_buf.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/util.h>
+#include <zephyr/sys/util_macro.h>
 #include <zephyr/toolchain.h>
 
 #include "bap_common.h"
@@ -34,6 +35,8 @@
 #define SUPPORTED_MAX_FRAMES_PER_SDU   1
 
 #if defined(CONFIG_BT_BAP_BROADCAST_SOURCE)
+CREATE_FLAG(flag_source_started);
+
 /* When BROADCAST_ENQUEUE_COUNT > 1 we can enqueue enough buffers to ensure that
  * the controller is never idle
  */
@@ -61,8 +64,8 @@ static uint8_t bis_codec_data[] = {
 			    BT_BYTES_LIST_LE32(BT_AUDIO_LOCATION_FRONT_CENTER)),
 };
 
-static K_SEM_DEFINE(sem_started, 0U, ARRAY_SIZE(broadcast_source_streams));
-static K_SEM_DEFINE(sem_stopped, 0U, ARRAY_SIZE(broadcast_source_streams));
+static K_SEM_DEFINE(sem_stream_started, 0U, ARRAY_SIZE(broadcast_source_streams));
+static K_SEM_DEFINE(sem_stream_stopped, 0U, ARRAY_SIZE(broadcast_source_streams));
 
 static void validate_stream_codec_cfg(const struct bt_bap_stream *stream)
 {
@@ -173,10 +176,14 @@ static void validate_stream_codec_cfg(const struct bt_bap_stream *stream)
 	}
 }
 
-static void started_cb(struct bt_bap_stream *stream)
+static void stream_started_cb(struct bt_bap_stream *stream)
 {
+	struct audio_test_stream *test_stream = audio_test_stream_from_bap_stream(stream);
 	struct bt_bap_ep_info info;
 	int err;
+
+	test_stream->seq_num = 0U;
+	test_stream->tx_cnt = 0U;
 
 	err = bt_bap_ep_get_info(stream->ep, &info);
 	if (err != 0) {
@@ -211,13 +218,13 @@ static void started_cb(struct bt_bap_stream *stream)
 
 	printk("Stream %p started\n", stream);
 	validate_stream_codec_cfg(stream);
-	k_sem_give(&sem_started);
+	k_sem_give(&sem_stream_started);
 }
 
-static void stopped_cb(struct bt_bap_stream *stream, uint8_t reason)
+static void steam_stopped_cb(struct bt_bap_stream *stream, uint8_t reason)
 {
 	printk("Stream %p stopped with reason 0x%02X\n", stream, reason);
-	k_sem_give(&sem_stopped);
+	k_sem_give(&sem_stream_stopped);
 }
 
 static void stream_sent_cb(struct bt_bap_stream *stream)
@@ -260,10 +267,22 @@ static void stream_sent_cb(struct bt_bap_stream *stream)
 }
 
 static struct bt_bap_stream_ops stream_ops = {
-	.started = started_cb,
-	.stopped = stopped_cb,
+	.started = stream_started_cb,
+	.stopped = steam_stopped_cb,
 	.sent = stream_sent_cb,
 };
+
+static void source_started_cb(struct bt_bap_broadcast_source *source)
+{
+	printk("Broadcast source %p started\n", source);
+	SET_FLAG(flag_source_started);
+}
+
+static void source_stopped_cb(struct bt_bap_broadcast_source *source, uint8_t reason)
+{
+	printk("Broadcast source %p stopped with reason 0x%02X\n", source, reason);
+	UNSET_FLAG(flag_source_started);
+}
 
 static int setup_broadcast_source(struct bt_bap_broadcast_source **source, bool encryption)
 {
@@ -320,18 +339,6 @@ static int setup_broadcast_source(struct bt_bap_broadcast_source **source, bool 
 	return 0;
 }
 
-static void test_broadcast_source_get_id(struct bt_bap_broadcast_source *source,
-					 uint32_t *broadcast_id_out)
-{
-	int err;
-
-	err = bt_bap_broadcast_source_get_id(source, broadcast_id_out);
-	if (err != 0) {
-		FAIL("Unable to get broadcast ID: %d\n", err);
-		return;
-	}
-}
-
 static void test_broadcast_source_get_base(struct bt_bap_broadcast_source *source,
 					   struct net_buf_simple *base_buf)
 {
@@ -372,7 +379,11 @@ static int setup_extended_adv(struct bt_bap_broadcast_source *source, struct bt_
 		return err;
 	}
 
-	test_broadcast_source_get_id(source, &broadcast_id);
+	err = bt_rand(&broadcast_id, BT_AUDIO_BROADCAST_ID_SIZE);
+	if (err) {
+		printk("Unable to generate broadcast ID: %d\n", err);
+		return err;
+	}
 
 	/* Setup extended advertising data */
 	net_buf_simple_add_le16(&ad_buf, BT_UUID_BROADCAST_AUDIO_VAL);
@@ -470,10 +481,12 @@ static void test_broadcast_source_start(struct bt_bap_broadcast_source *source,
 	}
 
 	/* Wait for all to be started */
-	printk("Waiting for streams to be started\n");
+	printk("Waiting for %zu streams to be started\n", ARRAY_SIZE(broadcast_source_streams));
 	for (size_t i = 0U; i < ARRAY_SIZE(broadcast_source_streams); i++) {
-		k_sem_take(&sem_started, K_FOREVER);
+		k_sem_take(&sem_stream_started, K_FOREVER);
 	}
+
+	WAIT_FOR_FLAG(flag_source_started);
 }
 
 static void test_broadcast_source_update_metadata(struct bt_bap_broadcast_source *source,
@@ -523,10 +536,12 @@ static void test_broadcast_source_stop(struct bt_bap_broadcast_source *source)
 	}
 
 	/* Wait for all to be stopped */
-	printk("Waiting for streams to be stopped\n");
+	printk("Waiting for %zu streams to be stopped\n", ARRAY_SIZE(broadcast_source_streams));
 	for (size_t i = 0U; i < ARRAY_SIZE(broadcast_source_streams); i++) {
-		k_sem_take(&sem_stopped, K_FOREVER);
+		k_sem_take(&sem_stream_stopped, K_FOREVER);
 	}
+
+	WAIT_FOR_UNSET_FLAG(flag_source_started);
 }
 
 static void test_broadcast_source_delete(struct bt_bap_broadcast_source *source)
@@ -567,10 +582,12 @@ static int stop_extended_adv(struct bt_le_ext_adv *adv)
 	return 0;
 }
 
-static void test_main(void)
+static void init(void)
 {
-	struct bt_bap_broadcast_source *source;
-	struct bt_le_ext_adv *adv;
+	static struct bt_bap_broadcast_source_cb broadcast_source_cb = {
+		.started = source_started_cb,
+		.stopped = source_stopped_cb,
+	};
 	int err;
 
 	err = bt_enable(NULL);
@@ -580,6 +597,21 @@ static void test_main(void)
 	}
 
 	printk("Bluetooth initialized\n");
+
+	err = bt_bap_broadcast_source_register_cb(&broadcast_source_cb);
+	if (err != 0) {
+		FAIL("Failed to register broadcast source callbacks (err %d)\n", err);
+		return;
+	}
+}
+
+static void test_main(void)
+{
+	struct bt_bap_broadcast_source *source;
+	struct bt_le_ext_adv *adv;
+	int err;
+
+	init();
 
 	err = setup_broadcast_source(&source, false);
 	if (err != 0) {
@@ -653,13 +685,7 @@ static void test_main_encrypted(void)
 	struct bt_le_ext_adv *adv;
 	int err;
 
-	err = bt_enable(NULL);
-	if (err) {
-		FAIL("Bluetooth init failed (err %d)\n", err);
-		return;
-	}
-
-	printk("Bluetooth initialized\n");
+	init();
 
 	err = setup_broadcast_source(&source, true);
 	if (err != 0) {
