@@ -174,7 +174,7 @@
                     mmc {
                         compatible = "zephyr,sdmmc-disk";
                         status = "okay";
-                        disk-name = "SDCard";
+                        disk-name = "SD";
                     };
                     spi-max-frequency = <24000000>;
                 };

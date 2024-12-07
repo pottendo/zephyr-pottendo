@@ -34,7 +34,7 @@ static const char *disk_mount_pt = "/SD:";
 #define BSIZE 128
 static char buf[BSIZE + 1];
 
-void main(void)
+int main(void)
 {
 
 	/* raw disk i/o */
