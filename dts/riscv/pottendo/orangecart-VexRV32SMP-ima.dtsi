@@ -95,7 +95,7 @@
                 riscv,ndev = <32>;
                 status="okay";
             };
-            clint0: clint@f0010000 {
+            clint: clint@f0010000 {
                 compatible = "sifive,clint0";
                 reg = <0xf0010000 0x10000>;
                 interrupts-extended = 
@@ -174,6 +174,7 @@
                     mmc {
                         compatible = "zephyr,sdmmc-disk";
                         status = "okay";
+                        disk-name = "SDCard";
                     };
                     spi-max-frequency = <24000000>;
                 };

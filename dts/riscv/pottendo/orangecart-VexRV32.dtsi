@@ -113,6 +113,7 @@
 				status = "okay";
 				mmc {
 					compatible = "zephyr,sdmmc-disk";
+					disk-name = "SDCard";
 					status = "okay";
 				};
 				spi-max-frequency = <24000000>;
