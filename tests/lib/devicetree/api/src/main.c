@@ -124,6 +124,7 @@ ZTEST(devicetree_api, test_path_props)
 	zassert_equal(DT_PROP_LEN(TEST_DEADBEEF, compatible), 1, "");
 	zassert_true(!strcmp(DT_PROP_BY_IDX(TEST_DEADBEEF, compatible, 0),
 			     "vnd,gpio-device"), "");
+	zassert_true(!strcmp(DT_PROP_LAST(TEST_DEADBEEF, compatible), "vnd,gpio-device"), "");
 	zassert_true(DT_NODE_HAS_PROP(TEST_DEADBEEF, status), "");
 	zassert_false(DT_NODE_HAS_PROP(TEST_DEADBEEF, foobar), "");
 
@@ -1637,6 +1638,7 @@ ZTEST(devicetree_api, test_arrays)
 	zassert_equal(DT_PROP_BY_IDX(TEST_ARRAYS, a, 0), a[0], "");
 	zassert_equal(DT_PROP_BY_IDX(TEST_ARRAYS, a, 1), a[1], "");
 	zassert_equal(DT_PROP_BY_IDX(TEST_ARRAYS, a, 2), a[2], "");
+	zassert_equal(DT_PROP_LAST(TEST_ARRAYS, a), a[2], "");
 
 	zassert_equal(DT_PROP_LEN(TEST_ARRAYS, a), 3, "");
 
@@ -2340,6 +2342,31 @@ ZTEST(devicetree_api, test_parent)
 	 */
 	zassert_true(DT_SAME_NODE(DT_CHILD(DT_PARENT(TEST_SPI_BUS_0), spi_33334444),
 				  TEST_SPI_BUS_0), "");
+}
+
+#undef DT_DRV_COMPAT
+#define DT_DRV_COMPAT vnd_parent_bindings
+ZTEST(devicetree_api, test_parent_nodes_list)
+{
+	/* When traversing upwards, there are no fixed attributes and labels */
+	#define TEST_FUNC(parent) { /* No operation */ }
+	#define TEST_FUNC_AND_COMMA(parent) TEST_FUNC(parent),
+
+	struct vnd_parent_binding {
+		int val;
+	};
+
+	struct vnd_parent_binding vals_a[] = {
+		DT_FOREACH_ANCESTOR(DT_NODELABEL(test_parent_a), TEST_FUNC_AND_COMMA)};
+
+	struct vnd_parent_binding vals_b[] = {
+		DT_FOREACH_ANCESTOR(DT_NODELABEL(test_parent_b), TEST_FUNC_AND_COMMA)};
+
+	zassert_equal(ARRAY_SIZE(vals_a), 3, "");
+	zassert_equal(ARRAY_SIZE(vals_b), 4, "");
+
+	#undef TEST_FUNC_AND_COMMA
+	#undef TEST_FUNC
 }
 
 #undef DT_DRV_COMPAT

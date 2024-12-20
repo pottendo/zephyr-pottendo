@@ -43,6 +43,12 @@ Deprecated in this release
   the same functionality in their application code by reconnecting to the peer when the
   :c:member:`bt_conn_cb.disconnected` callback is invoked.
 
+* Deprecated TinyCrypt library. The reasons for this are (:github:`43712`):
+
+  * The upstream version of this library is no longer maintained.
+  * Reducing the number of cryptographic libraries in Zephyr to reduce maintenance overhead.
+  * The PSA Crypto API is the recommended cryptographic library for Zephyr.
+
 Architectures
 *************
 
@@ -88,6 +94,11 @@ Bluetooth
 
 * HCI Drivers
 
+* Mesh
+
+  * Introduced a :c:member:`bt_mesh_health_cli::update` callback which is used to update the message
+    published periodically.
+
 Boards & SoC Support
 ********************
 
@@ -101,7 +112,6 @@ Boards & SoC Support
 
   * All HWMv1 board name aliases which were added as deprecated in v3.7 are now removed
     (:github:`82247`).
-  * Enabled USB, RTC on NXP ``frdm_mcxn236``
 
 * Added support for the following shields:
 
@@ -112,6 +122,17 @@ Build system and Infrastructure
   files. This feature was deprecated a long time ago. Projects that do still use
   them can use the :zephyr_file:`scripts/utils/twister_to_list.py` script to
   automatically migrate Twister configuration files.
+
+* Twister
+
+  * Test Case names for Ztest now include Ztest suite name, so the resulting identifier has
+    three sections and looks like: ``<test_scenario_name>.<ztest_suite_name>.<ztest_name>``.
+    These extended identifiers are used in log output, twister.json and testplan.json,
+    as well as for ``--sub-test`` command line parameters (:github:`80088`).
+  * The ``--no-detailed-test-id`` command line option also shortens Ztest Test Case names excluding
+    its Test Scenario name prefix which is the same as the parent Test Suite id (:github:`82302`).
+    Twister XML reports have full testsuite name as ``testcase.classname property`` resolving
+    possible duplicate testcase elements in ``twister_report.xml`` testsuite container.
 
 Drivers and Sensors
 *******************
@@ -144,6 +165,8 @@ Drivers and Sensors
 * Ethernet
 
 * Flash
+
+  * NXP MCUX FlexSPI: Add support for 4-byte addressing mode of Micron MT25Q flash family (:github:`82532`)
 
 * FPGA
 
@@ -209,6 +232,12 @@ Drivers and Sensors
 * Serial
 
 * SPI
+
+* Stepper
+
+  * Added driver for ADI TMC2209. :dtcompatible:`adi,tmc2209`.
+  * Added driver for TI DRV8424. :dtcompatible:`ti,drv8424`.
+  * Added :kconfig:option:`CONFIG_STEP_DIR_STEPPER` to enable common functions for step/dir steppers.
 
 * USB
 
@@ -278,6 +307,8 @@ Networking
 * Websocket:
 
 * Wi-Fi:
+
+  * hostap: Removed the unused default Crypto module :kconfig:option:`CONFIG_WIFI_NM_WPA_SUPPLICANT_CRYPTO` Kconfig option.
 
 * zperf:
 

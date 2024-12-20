@@ -90,6 +90,10 @@
 	pinctrl-names = "default";
 };
 
+&ctimer0 {
+	status = "okay";
+};
+
 &dac0 {
 	status = "okay";
 	pinctrl-0 = <&pinmux_dac0>;
@@ -108,6 +112,29 @@
 	pinctrl-names = "default";
 };
 
+&lpcmp0 {
+	status = "okay";
+	pinctrl-0 = <&pinmux_lpcmp0>;
+	pinctrl-names = "default";
+};
+
+&lpi2c0 {
+	status = "okay";
+	pinctrl-0 = <&pinmux_lpi2c0>;
+	pinctrl-names = "default";
+};
+
+&lpi2c3 {
+	status = "okay";
+	pinctrl-0 = <&pinmux_lpi2c3>;
+	pinctrl-names = "default";
+};
+
 &lptmr0 {
 	status = "okay";
+};
+
+zephyr_udc0: &usb {
+	status = "okay";
+	num-bidir-endpoints = <8>;
 };

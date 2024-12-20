@@ -77,6 +77,8 @@ static const struct wifi_mgmt_ops mgmt_ops = {
 	.channel = supplicant_channel,
 	.set_rts_threshold = supplicant_set_rts_threshold,
 	.get_rts_threshold = supplicant_get_rts_threshold,
+	.bss_ext_capab = supplicant_bss_ext_capab,
+	.legacy_roam = supplicant_legacy_roam,
 #ifdef CONFIG_WIFI_NM_WPA_SUPPLICANT_WNM
 	.btm_query = supplicant_btm_query,
 #endif
@@ -111,9 +113,11 @@ static const struct wifi_mgmt_ops mgmt_ap_ops = {
 	.dpp_dispatch = hapd_dpp_dispatch,
 #endif /* CONFIG_WIFI_NM_WPA_SUPPLICANT_DPP */
 	.ap_config_params = supplicant_ap_config_params,
+	.set_rts_threshold = supplicant_set_rts_threshold,
 #ifdef CONFIG_WIFI_NM_HOSTAPD_CRYPTO_ENTERPRISE
 	.enterprise_creds = supplicant_add_enterprise_creds,
 #endif
+	.set_btwt = supplicant_set_btwt,
 };
 
 DEFINE_WIFI_NM_INSTANCE(hostapd, &mgmt_ap_ops);
@@ -716,6 +720,14 @@ static int hostapd_disable_iface_cb(struct hostapd_iface *hapd_iface)
 	supplicant_send_wifi_mgmt_ap_status(hapd_iface,
 					    NET_EVENT_WIFI_CMD_AP_DISABLE_RESULT,
 					    WIFI_STATUS_AP_SUCCESS);
+	hostapd_config_free(hapd_iface->conf);
+	hapd_iface->conf = hapd_iface->interfaces->config_read_cb(hapd_iface->config_fname);
+	for (j = 0; j < hapd_iface->num_bss; j++) {
+		hapd = hapd_iface->bss[j];
+		hapd->iconf = hapd_iface->conf;
+		hapd->conf = hapd_iface->conf->bss[j];
+		hapd->driver = hapd_iface->conf->driver;
+	}
 
 	return 0;
 }
@@ -1079,12 +1091,6 @@ static void zephyr_hostapd_init(struct supplicant_context *ctx)
 		zephyr_hostapd_ctrl_init((void *)interfaces->iface[i]->bss[0]);
 	}
 
-	ret = wifi_nm_register_mgd_iface(wifi_nm_get_instance("hostapd"), iface);
-	if (ret) {
-		LOG_ERR("Failed to register mgd iface with native stack %s (%d)",
-			ifname, ret);
-		goto out;
-	}
 out:
 	return;
 }

@@ -20,6 +20,9 @@ supported:
   - gpio
   - i2c
   - uart
+  - pwm
+  - usb_device
+  - usbd
 testing:
   ignore_tags:
     - net

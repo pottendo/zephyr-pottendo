@@ -29,6 +29,7 @@ LOG_MODULE_REGISTER(net_wifi_shell, LOG_LEVEL_INF);
 #include <zephyr/sys/slist.h>
 
 #include "net_shell_private.h"
+#include <math.h>
 #ifdef CONFIG_WIFI_NM_WPA_SUPPLICANT_CRYPTO_ENTERPRISE
 static const char ca_cert_test[] = {
 	#include <wifi_enterprise_test_certs/ca.pem.inc>
@@ -576,9 +577,11 @@ static int __wifi_args_to_params(const struct shell *sh, size_t argc, char *argv
 		{"channel", required_argument, 0, 'c'},
 		{"timeout", required_argument, 0, 't'},
 		{"anon-id", required_argument, 0, 'a'},
+		{"bandwidth", required_argument, 0, 'B'},
 		{"key1-pwd", required_argument, 0, 'K'},
 		{"key2-pwd", required_argument, 0, 'K'},
 		{"suiteb-type", required_argument, 0, 'S'},
+		{"TLS-cipher", required_argument, 0, 'T'},
 		{"eap-version", required_argument, 0, 'V'},
 		{"eap-id1", required_argument, 0, 'I'},
 		{"eap-id2", required_argument, 0, 'I'},
@@ -623,8 +626,9 @@ static int __wifi_args_to_params(const struct shell *sh, size_t argc, char *argv
 	params->mfp = WIFI_MFP_OPTIONAL;
 	params->eap_ver = 1;
 	params->ignore_broadcast_ssid = 0;
+	params->bandwidth = WIFI_FREQ_BANDWIDTH_20MHZ;
 
-	while ((opt = getopt_long(argc, argv, "s:p:k:e:w:b:c:m:t:a:K:S:V:I:P:i:Rh",
+	while ((opt = getopt_long(argc, argv, "s:p:k:e:w:b:c:m:t:a:B:K:S:T:V:I:P:i:Rh",
 				  long_options, &opt_index)) != -1) {
 		state = getopt_state_get();
 		switch (opt) {
@@ -737,6 +741,24 @@ static int __wifi_args_to_params(const struct shell *sh, size_t argc, char *argv
 				return -EINVAL;
 			}
 			break;
+		case 'B':
+			if (iface_mode == WIFI_MODE_AP) {
+				switch (atoi(state->optarg)) {
+				case 1:
+					params->bandwidth = WIFI_FREQ_BANDWIDTH_20MHZ;
+					break;
+				case 2:
+					params->bandwidth = WIFI_FREQ_BANDWIDTH_40MHZ;
+					break;
+				case 3:
+					params->bandwidth = WIFI_FREQ_BANDWIDTH_80MHZ;
+					break;
+				default:
+					PR_ERROR("Invalid bandwidth: %d\n", atoi(state->optarg));
+					return -EINVAL;
+				}
+			}
+			break;
 		case 'K':
 			if (key_passwd_cnt >= 2) {
 				PR_WARNING("too many key_passwd (max 2 key_passwd)\n");
@@ -764,6 +786,9 @@ static int __wifi_args_to_params(const struct shell *sh, size_t argc, char *argv
 			break;
 		case 'S':
 			params->suiteb_type = atoi(state->optarg);
+			break;
+		case 'T':
+			params->TLS_cipher = atoi(state->optarg);
 			break;
 		case 'V':
 			params->eap_ver = atoi(state->optarg);
@@ -1153,25 +1178,29 @@ static int cmd_wifi_ap_status(const struct shell *sh, size_t argc, char *argv[])
 	}
 
 	switch (status.state) {
-	case WIFI_HAPD_IFACE_UNINITIALIZED:
-		PR("State: %s\n", "HAPD_IFACE_UNINITIALIZED");
+	case WIFI_SAP_IFACE_UNINITIALIZED:
+		PR("State: %s\n", "UNINITIALIZED");
 		return 0;
-	case WIFI_HAPD_IFACE_DISABLED:
-		PR("State: %s\n", "HAPD_IFACE_DISABLED");
+	case WIFI_SAP_IFACE_DISABLED:
+		PR("State: %s\n", "DISABLED");
 		return 0;
-	case WIFI_HAPD_IFACE_COUNTRY_UPDATE:
-		PR("State: %s\n", "HAPD_IFACE_DISABLED");
+	case WIFI_SAP_IFACE_COUNTRY_UPDATE:
+		PR("State: %s\n", "COUNTRY_UPDATE");
 		return 0;
-	case WIFI_HAPD_IFACE_ACS:
-		PR("State: %s\n", "HAPD_IFACE_DISABLED");
+	case WIFI_SAP_IFACE_ACS:
+		PR("State: %s\n", "ACS");
 		return 0;
-	case WIFI_HAPD_IFACE_HT_SCAN:
-		PR("State: %s\n", "HAPD_IFACE_DISABLED");
+	case WIFI_SAP_IFACE_HT_SCAN:
+		PR("State: %s\n", "HT_SCAN");
 		return 0;
-	case WIFI_HAPD_IFACE_DFS:
-		PR("State: %s\n", "HAPD_IFACE_DISABLED");
+	case WIFI_SAP_IFACE_DFS:
+		PR("State: %s\n", "DFS");
 		break;
-	case WIFI_HAPD_IFACE_ENABLED:
+	case WIFI_SAP_IFACE_NO_IR:
+		PR("State: %s\n", "NO_IR");
+		break;
+	case WIFI_SAP_IFACE_ENABLED:
+		PR("State: %s\n", "ENABLED");
 		break;
 	default:
 		return 0;
@@ -1504,6 +1533,10 @@ static int cmd_wifi_twt_setup_quick(const struct shell *sh, size_t argc,
 	struct wifi_twt_params params = { 0 };
 	int idx = 1;
 	long value;
+	double twt_mantissa_scale = 0.0;
+	double twt_interval_scale = 0.0;
+	uint16_t scale = 1000;
+	int exponent = 0;
 
 	context.sh = sh;
 
@@ -1528,6 +1561,13 @@ static int cmd_wifi_twt_setup_quick(const struct shell *sh, size_t argc,
 	}
 	params.setup.twt_interval = (uint64_t)value;
 
+	/* control the region of mantissa filed */
+	twt_interval_scale = (double)(params.setup.twt_interval / scale);
+	/* derive mantissa and exponent from interval */
+	twt_mantissa_scale = frexp(twt_interval_scale, &exponent);
+	params.setup.twt_mantissa = ceil(twt_mantissa_scale * scale);
+	params.setup.twt_exponent = exponent;
+
 	if (net_mgmt(NET_REQUEST_WIFI_TWT, iface, &params, sizeof(params))) {
 		PR_WARNING("%s with %s failed, reason : %s\n",
 			   wifi_twt_operation_txt(params.operation),
@@ -1544,74 +1584,236 @@ static int cmd_wifi_twt_setup_quick(const struct shell *sh, size_t argc,
 	return 0;
 }
 
+static int cmd_wifi_btwt_setup(const struct shell *sh, size_t argc, char *argv[])
+{
+	struct net_if *iface = net_if_get_wifi_sap();
+	struct wifi_twt_params params = {0};
+	int idx = 1;
+	long value;
+	int ret = 0;
+
+	context.sh = sh;
+
+	params.btwt.sub_id = (uint16_t)shell_strtol(argv[idx++], 10, &ret);
+	params.btwt.nominal_wake = (uint8_t)shell_strtol(argv[idx++], 10, &ret);
+	params.btwt.max_sta_support = (uint8_t)shell_strtol(argv[idx++], 10, &ret);
+
+	if (!parse_number(sh, &value, argv[idx++], NULL, 1, 0xFFFF)) {
+		return -EINVAL;
+	}
+	params.btwt.twt_mantissa = (uint16_t)value;
+
+	params.btwt.twt_offset = (uint16_t)shell_strtol(argv[idx++], 10, &ret);
+
+	if (!parse_number(sh, &value, argv[idx++], NULL, 0, WIFI_MAX_TWT_EXPONENT)) {
+		return -EINVAL;
+	}
+	params.btwt.twt_exponent = (uint8_t)value;
+
+	params.btwt.sp_gap = (uint8_t)shell_strtol(argv[idx++], 10, &ret);
+
+	if (ret) {
+		PR_ERROR("Invalid argument (ret %d)\n", ret);
+		return -EINVAL;
+	}
+
+	if (net_mgmt(NET_REQUEST_WIFI_BTWT, iface, &params, sizeof(params))) {
+		PR_WARNING("Failed reason : %s\n",
+			   wifi_twt_get_err_code_str(params.fail_reason));
+
+		return -ENOEXEC;
+	}
+
+	PR("BTWT setup\n");
+
+	return 0;
+}
+
+static int twt_args_to_params(const struct shell *sh, size_t argc, char *argv[],
+				 struct wifi_twt_params *params)
+{
+	int opt;
+	int opt_index = 0;
+	struct getopt_state *state;
+	long value;
+	double twt_mantissa_scale = 0.0;
+	double twt_interval_scale = 0.0;
+	uint16_t scale = 1000;
+	int exponent = 0;
+	static const struct option long_options[] = {
+		{"negotiation-type", required_argument, 0, 'n'},
+		{"setup-cmd", required_argument, 0, 'c'},
+		{"dialog-token", required_argument, 0, 't'},
+		{"flow-id", required_argument, 0, 'f'},
+		{"responder", required_argument, 0, 'r'},
+		{"trigger", required_argument, 0, 'T'},
+		{"implicit", required_argument, 0, 'I'},
+		{"announce", required_argument, 0, 'a'},
+		{"wake-interval", required_argument, 0, 'w'},
+		{"interval", required_argument, 0, 'i'},
+		{"wake-ahead-duration", required_argument, 0, 'D'},
+		{"info-disable", required_argument, 0, 'd'},
+		{"exponent", required_argument, 0, 'e'},
+		{"mantissa", required_argument, 0, 'm'},
+		{"help", no_argument, 0, 'h'},
+		{0, 0, 0, 0}};
+
+	params->operation = WIFI_TWT_SETUP;
+
+	while ((opt = getopt_long(argc, argv, "n:c:t:f:r:T:I:a:t:w:i:D:d:e:m:h",
+				  long_options, &opt_index)) != -1) {
+		state = getopt_state_get();
+		switch (opt) {
+		case 'n':
+			if (!parse_number(sh, &value, state->optarg, NULL,
+					  WIFI_TWT_INDIVIDUAL,
+					  WIFI_TWT_WAKE_TBTT)) {
+				return -EINVAL;
+			}
+			params->negotiation_type = (enum wifi_twt_negotiation_type)value;
+			break;
+
+		case 'c':
+			if (!parse_number(sh, &value, state->optarg, NULL,
+					  WIFI_TWT_SETUP_CMD_REQUEST,
+					  WIFI_TWT_SETUP_CMD_DEMAND)) {
+				return -EINVAL;
+			}
+			params->setup_cmd = (enum wifi_twt_setup_cmd)value;
+			break;
+
+		case 't':
+			if (!parse_number(sh, &value, state->optarg, NULL, 1, 255)) {
+				return -EINVAL;
+			}
+			params->dialog_token = (uint8_t)value;
+			break;
+
+		case 'f':
+			if (!parse_number(sh, &value, state->optarg, NULL, 0,
+					  (WIFI_MAX_TWT_FLOWS - 1))) {
+				return -EINVAL;
+			}
+			params->flow_id = (uint8_t)value;
+			break;
+
+		case 'r':
+			if (!parse_number(sh, &value, state->optarg, NULL, 0, 1)) {
+				return -EINVAL;
+			}
+			params->setup.responder = (bool)value;
+			break;
+
+		case 'T':
+			if (!parse_number(sh, &value, state->optarg, NULL, 0, 1)) {
+				return -EINVAL;
+			}
+			params->setup.trigger = (bool)value;
+			break;
+
+		case 'I':
+			if (!parse_number(sh, &value, state->optarg, NULL, 0, 1)) {
+				return -EINVAL;
+			}
+			params->setup.implicit = (bool)value;
+			break;
+
+		case 'a':
+			if (!parse_number(sh, &value, state->optarg, NULL, 0, 1)) {
+				return -EINVAL;
+			}
+			params->setup.announce = (bool)value;
+			break;
+
+		case 'w':
+			if (!parse_number(sh, &value, state->optarg, NULL, 1,
+					  WIFI_MAX_TWT_WAKE_INTERVAL_US)) {
+				return -EINVAL;
+			}
+			params->setup.twt_wake_interval = (uint32_t)value;
+			break;
+
+		case 'i':
+			if (!parse_number(sh, &value, state->optarg, NULL, 1,
+					  WIFI_MAX_TWT_INTERVAL_US)) {
+				return -EINVAL;
+			}
+			params->setup.twt_interval = (uint64_t)value;
+			break;
+
+		case 'D':
+			if (!parse_number(sh, &value, state->optarg, NULL, 0,
+					  WIFI_MAX_TWT_WAKE_AHEAD_DURATION_US)) {
+				return -EINVAL;
+			}
+			params->setup.twt_wake_ahead_duration = (uint32_t)value;
+			break;
+
+		case 'd':
+			if (!parse_number(sh, &value, state->optarg, NULL, 0, 1)) {
+				return -EINVAL;
+			}
+			params->setup.twt_info_disable = (bool)value;
+			break;
+
+		case 'e':
+			if (!parse_number(sh, &value, state->optarg, NULL, 0,
+					  WIFI_MAX_TWT_EXPONENT)) {
+				return -EINVAL;
+			}
+			params->setup.twt_exponent = (uint8_t)value;
+			break;
+
+		case 'm':
+			if (!parse_number(sh, &value, state->optarg, NULL, 0, 0xFFFF)) {
+				return -EINVAL;
+			}
+			params->setup.twt_mantissa = (uint16_t)value;
+			break;
+
+		case 'h':
+			return -ENOEXEC;
+		}
+	}
+
+	if ((params->setup.twt_interval != 0) &&
+	   ((params->setup.twt_exponent != 0) ||
+	   (params->setup.twt_mantissa != 0))) {
+		PR_ERROR("Only one of TWT internal or (mantissa, exponent) should be used\n");
+		return -EINVAL;
+	}
+
+	if (params->setup.twt_interval) {
+		/* control the region of mantissa filed */
+		twt_interval_scale = (double)(params->setup.twt_interval / scale);
+		/* derive mantissa and exponent from interval */
+		twt_mantissa_scale = frexp(twt_interval_scale, &exponent);
+		params->setup.twt_mantissa = ceil(twt_mantissa_scale * scale);
+		params->setup.twt_exponent = exponent;
+	} else if ((params->setup.twt_exponent != 0) ||
+		   (params->setup.twt_mantissa != 0)) {
+		params->setup.twt_interval = floor(ldexp(params->setup.twt_mantissa,
+							 params->setup.twt_exponent));
+	} else {
+		PR_ERROR("Either TWT interval or (mantissa, exponent) is needed\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int cmd_wifi_twt_setup(const struct shell *sh, size_t argc,
 			      char *argv[])
 {
 	struct net_if *iface = net_if_get_wifi_sta();
 	struct wifi_twt_params params = { 0 };
-	int idx = 1;
-	long value;
 
 	context.sh = sh;
 
-	params.operation = WIFI_TWT_SETUP;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, WIFI_TWT_INDIVIDUAL,
-			  WIFI_TWT_WAKE_TBTT)) {
-		return -EINVAL;
+	if (twt_args_to_params(sh, argc, argv, &params)) {
+		shell_help(sh);
+		return -ENOEXEC;
 	}
-	params.negotiation_type = (enum wifi_twt_negotiation_type)value;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, WIFI_TWT_SETUP_CMD_REQUEST,
-			  WIFI_TWT_SETUP_CMD_DEMAND)) {
-		return -EINVAL;
-	}
-	params.setup_cmd = (enum wifi_twt_setup_cmd)value;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, 1, 255)) {
-		return -EINVAL;
-	}
-	params.dialog_token = (uint8_t)value;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, 0, (WIFI_MAX_TWT_FLOWS - 1))) {
-		return -EINVAL;
-	}
-	params.flow_id = (uint8_t)value;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, 0, 1)) {
-		return -EINVAL;
-	}
-	params.setup.responder = (bool)value;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, 0, 1)) {
-		return -EINVAL;
-	}
-	params.setup.trigger = (bool)value;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, 0, 1)) {
-		return -EINVAL;
-	}
-	params.setup.implicit = (bool)value;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, 0, 1)) {
-		return -EINVAL;
-	}
-	params.setup.announce = (bool)value;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, 1, WIFI_MAX_TWT_WAKE_INTERVAL_US)) {
-		return -EINVAL;
-	}
-	params.setup.twt_wake_interval = (uint32_t)value;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, 1, WIFI_MAX_TWT_INTERVAL_US)) {
-		return -EINVAL;
-	}
-	params.setup.twt_interval = (uint64_t)value;
-
-	if (!parse_number(sh, &value, argv[idx++], NULL, 0, WIFI_MAX_TWT_WAKE_AHEAD_DURATION_US)) {
-		return -EINVAL;
-	}
-	params.setup.twt_wake_ahead_duration = (uint32_t)value;
 
 	if (net_mgmt(NET_REQUEST_WIFI_TWT, iface, &params, sizeof(params))) {
 		PR_WARNING("%s with %s failed. reason : %s\n",
@@ -1835,11 +2037,15 @@ static int wifi_ap_config_args_to_params(const struct shell *sh, size_t argc, ch
 	static const struct option long_options[] = {
 		{"max_inactivity", required_argument, 0, 'i'},
 		{"max_num_sta", required_argument, 0, 's'},
+#if defined(CONFIG_WIFI_NM_HOSTAPD_AP)
+		{"ht_capab", required_argument, 0, 'n'},
+		{"vht_capab", required_argument, 0, 'c'},
+#endif
 		{"help", no_argument, 0, 'h'},
 		{0, 0, 0, 0}};
 	long val;
 
-	while ((opt = getopt_long(argc, argv, "i:s:h",
+	while ((opt = getopt_long(argc, argv, "i:s:n:c:h",
 				  long_options, &opt_index)) != -1) {
 		state = getopt_state_get();
 		switch (opt) {
@@ -1859,6 +2065,16 @@ static int wifi_ap_config_args_to_params(const struct shell *sh, size_t argc, ch
 			params->max_num_sta = (uint32_t)val;
 			params->type |= WIFI_AP_CONFIG_PARAM_MAX_NUM_STA;
 			break;
+#if defined(CONFIG_WIFI_NM_HOSTAPD_AP)
+		case 'n':
+			strncpy(params->ht_capab, state->optarg, WIFI_AP_IEEE_80211_CAPAB_MAX_LEN);
+			params->type |= WIFI_AP_CONFIG_PARAM_HT_CAPAB;
+			break;
+		case 'c':
+			strncpy(params->vht_capab, state->optarg, WIFI_AP_IEEE_80211_CAPAB_MAX_LEN);
+			params->type |= WIFI_AP_CONFIG_PARAM_VHT_CAPAB;
+			break;
+#endif
 		case 'h':
 			shell_help(sh);
 			return SHELL_CMD_HELP_PRINTED;
@@ -1896,43 +2112,90 @@ static int cmd_wifi_ap_config_params(const struct shell *sh, size_t argc,
 	return 0;
 }
 
+static int cmd_wifi_ap_set_rts_threshold(const struct shell *sh, size_t argc, char *argv[])
+{
+	struct net_if *iface = net_if_get_wifi_sap();
+	unsigned int rts_threshold = -1; /* Default value if user supplies "off" argument */
+	int err = 0;
+
+	context.sh = sh;
+
+	if (strcmp(argv[1], "off") != 0) {
+		long rts_val = shell_strtol(argv[1], 10, &err);
+
+		if (err) {
+			shell_error(sh, "Unable to parse input (err %d)", err);
+			return err;
+		}
+
+		rts_threshold = (unsigned int)rts_val;
+	}
+
+	if (net_mgmt(NET_REQUEST_WIFI_AP_RTS_THRESHOLD, iface,
+		     &rts_threshold, sizeof(rts_threshold))) {
+		shell_fprintf(sh, SHELL_WARNING,
+			      "Setting RTS threshold failed.\n");
+		return -ENOEXEC;
+	}
+
+	if ((int)rts_threshold >= 0)
+		shell_fprintf(sh, SHELL_NORMAL, "RTS threshold: %d\n", rts_threshold);
+	else
+		shell_fprintf(sh, SHELL_NORMAL, "RTS threshold is off\n");
+
+	return 0;
+}
+
 static int cmd_wifi_reg_domain(const struct shell *sh, size_t argc,
 			       char *argv[])
 {
 	struct net_if *iface = net_if_get_wifi_sta();
 	struct wifi_reg_domain regd = {0};
 	int ret, chan_idx = 0;
+	int opt;
+	bool force = false;
+	bool verbose = false;
+	int opt_index = 0;
+	static const struct option long_options[] = {
+		{"force", no_argument, 0, 'f'},
+		{"verbose", no_argument, 0, 'v'},
+		{NULL, 0, NULL, 0}
+	};
 
-	if (argc == 1) {
+	while ((opt = getopt_long(argc, argv, "fv", long_options, &opt_index)) != -1) {
+		switch (opt) {
+		case 'f':
+			force = true;
+			break;
+		case 'v':
+			verbose = true;
+			break;
+		default:
+			return -ENOEXEC;
+		}
+	}
+
+	if (optind == argc) {
 		regd.chan_info = &chan_info[0];
 		regd.oper = WIFI_MGMT_GET;
-	} else if (argc >= 2 && argc <= 3) {
-		regd.oper = WIFI_MGMT_SET;
-		if (strlen(argv[1]) != 2) {
+	} else if (optind == argc - 1) {
+		if (strlen(argv[optind]) != 2) {
 			PR_WARNING("Invalid reg domain: Length should be two letters/digits\n");
 			return -ENOEXEC;
 		}
 
 		/* Two letter country code with special case of 00 for WORLD */
-		if (((argv[1][0] < 'A' || argv[1][0] > 'Z') ||
-			(argv[1][1] < 'A' || argv[1][1] > 'Z')) &&
-			(argv[1][0] != '0' || argv[1][1] != '0')) {
-			PR_WARNING("Invalid reg domain %c%c\n", argv[1][0], argv[1][1]);
+		if (((argv[optind][0] < 'A' || argv[optind][0] > 'Z') ||
+			(argv[optind][1] < 'A' || argv[optind][1] > 'Z')) &&
+			(argv[optind][0] != '0' || argv[optind][1] != '0')) {
+			PR_WARNING("Invalid reg domain %c%c\n", argv[optind][0], argv[optind][1]);
 			return -ENOEXEC;
 		}
-		regd.country_code[0] = argv[1][0];
-		regd.country_code[1] = argv[1][1];
-
-		if (argc == 3) {
-			if (strncmp(argv[2], "-f", 2) == 0) {
-				regd.force = true;
-			} else {
-				PR_WARNING("Invalid option %s\n", argv[2]);
-				return -ENOEXEC;
-			}
-		}
+		regd.country_code[0] = argv[optind][0];
+		regd.country_code[1] = argv[optind][1];
+		regd.force = force;
+		regd.oper = WIFI_MGMT_SET;
 	} else {
-		shell_help(sh);
 		return -ENOEXEC;
 	}
 
@@ -1947,6 +2210,9 @@ static int cmd_wifi_reg_domain(const struct shell *sh, size_t argc,
 	if (regd.oper == WIFI_MGMT_GET) {
 		PR("Wi-Fi Regulatory domain is: %c%c\n",
 		   regd.country_code[0], regd.country_code[1]);
+		if (!verbose) {
+			return 0;
+		}
 		PR("<channel>\t<center frequency>\t<supported(y/n)>\t"
 		   "<max power(dBm)>\t<passive transmission only(y/n)>\t<DFS supported(y/n)>\n");
 		for (chan_idx = 0; chan_idx < regd.num_channels; chan_idx++) {
@@ -3154,6 +3420,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "broadcast SSID.\n"
 		      "2: clear SSID (ASCII 0), but keep the original length and ignore "
 		      "probe requests for broadcast SSID.\n"
+		      "[-B, --bandwidth=<bandwidth>]: 1:20MHz, 2:40MHz, 3:80MHz\n"
 		      "[-K, --key1-pwd for eap phase1 or --key2-pwd for eap phase2]:\n"
 		      "Private key passwd for enterprise mode. Default no password for private key.\n"
 		      "[-S, --suiteb-type]: 1:suiteb, 2:suiteb-192. Default 0: not suiteb mode.\n"
@@ -3173,8 +3440,18 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "Configure AP parameters.\n"
 		      "-i --max_inactivity=<time duration (in seconds)>\n"
 		      "-s --max_num_sta=<maximum number of stations>\n"
+#if defined(CONFIG_WIFI_NM_HOSTAPD_AP)
+		      "Please refer to hostapd.conf to set the following options,\n"
+		      "============ IEEE 802.11 related configuration ============\n"
+		      "-n --ht_capab=<HT capabilities (string)>\n"
+		      "(e.g. \"ht_capab=[HT40+]\" is that \"-n [HT40+]\")\n"
+		      "-c --vht_capab=<VHT capabilities (string)>\n"
+		      "(e.g. \"vht_capab=[SU-BEAMFORMEE][BF-ANTENNA-4]\" is that\n"
+		      "\"-c [SU-BEAMFORMEE][BF-ANTENNA-4]\")\n"
+		      "===========================================================\n"
+#endif
 		      "-h --help (prints help)",
-		      cmd_wifi_ap_config_params, 2, 5),
+		      cmd_wifi_ap_config_params, 2, 10),
 	SHELL_CMD_ARG(wps_pbc, NULL,
 		      "Start AP WPS PBC session.\n",
 		      cmd_wifi_ap_wps_pbc, 1, 0),
@@ -3183,6 +3460,12 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "[pin] Only applicable for set.\n",
 		      cmd_wifi_ap_wps_pin, 1, 1),
 	SHELL_CMD_ARG(status, NULL, "Status of Wi-Fi SAP\n", cmd_wifi_ap_status, 1, 0),
+	SHELL_CMD_ARG(rts_threshold,
+		  NULL,
+		  "<rts_threshold: rts threshold/off>.\n",
+		  cmd_wifi_ap_set_rts_threshold,
+		  2,
+		  0),
 	SHELL_SUBCMD_SET_END);
 
 SHELL_SUBCMD_ADD((wifi), ap, &wifi_cmd_ap,
@@ -3196,13 +3479,30 @@ SHELL_STATIC_SUBCMD_SET_CREATE(wifi_twt_ops,
 		cmd_wifi_twt_setup_quick,
 		3, 0),
 	SHELL_CMD_ARG(setup, NULL, " Start a TWT flow:\n"
-		"<negotiation_type, 0: Individual, 1: Broadcast, 2: Wake TBTT>\n"
-		"<setup_cmd: 0: Request, 1: Suggest, 2: Demand>\n"
-		"<dialog_token: 1-255> <flow_id: 0-7> <responder: 0/1> <trigger: 0/1> <implicit:0/1> "
-		"<announce: 0/1> <twt_wake_interval: 1-262144us> <twt_interval: 1us-2^31us>.\n"
-		"<twt_wake_ahead_duration>: 0us-2^31us>\n",
+		"<-n --negotiation-type>: 0: Individual, 1: Broadcast, 2: Wake TBTT\n"
+		"<-c --setup-cmd>: 0: Request, 1: Suggest, 2: Demand\n"
+		"<-t --dialog-token>: 1-255\n"
+		"<-f --flow-id>: 0-7\n"
+		"<-r --responder>: 0/1\n"
+		"<-T --trigger>: 0/1\n"
+		"<-I --implicit>:0/1\n"
+		"<-a --announce>: 0/1\n"
+		"<-w --wake-interval>: 1-262144us\n"
+		"<-i --interval>: 1us-2^31us\n"
+		"<-D --wake-ahead-duration>: 0us-2^31us\n"
+		"<-d --info-disable>: 0/1\n"
+		"<-e --exponent>: 0-31\n"
+		"<-m --mantissa>: 1-2^16\n"
+		"[-h, --help]: Print out command usage.\n",
 		cmd_wifi_twt_setup,
-		12, 0),
+		25, 5),
+	SHELL_CMD_ARG(
+		btwt_setup, NULL,
+		" Start a BTWT flow:\n"
+		"<sub_id: Broadcast TWT AP config> <nominal_wake: 64-255> <max_sta_support>"
+		"<twt_mantissa:0-sizeof(UINT16)> <twt_offset> <twt_exponent: 0-31> <sp_gap>.\n",
+		cmd_wifi_btwt_setup,
+		8, 0),
 	SHELL_CMD_ARG(teardown, NULL, " Teardown a TWT flow:\n"
 		"<negotiation_type, 0: Individual, 1: Broadcast, 2: Wake TBTT>\n"
 		"<setup_cmd: 0: Request, 1: Suggest, 2: Demand>\n"
@@ -3306,26 +3606,26 @@ SHELL_SUBCMD_ADD((wifi), dpp, &wifi_cmd_dpp,
 
 SHELL_SUBCMD_SET_CREATE(wifi_commands, (wifi));
 
-SHELL_SUBCMD_ADD((wifi), 11k, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), 11k, NULL,
 		 "Configure 11k or get 11k status.\n"
 		 "[enable/disable]\n",
 		 cmd_wifi_11k,
 		 1, 1);
 
-SHELL_SUBCMD_ADD((wifi), 11k_neighbor_request, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), 11k_neighbor_request, NULL,
 		 "Send Neighbor Report Request frame.\n"
 		 "[ssid <ssid>]\n",
 		 cmd_wifi_11k_neighbor_request,
 		 1, 2);
 
 #ifdef CONFIG_WIFI_NM_WPA_SUPPLICANT_WNM
-SHELL_SUBCMD_ADD((wifi), 11v_btm_query, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), 11v_btm_query, NULL,
 		 "<query_reason: The reason code for a BSS transition management query>.\n",
 		 cmd_wifi_btm_query,
 		 2, 0);
 #endif
 
-SHELL_SUBCMD_ADD((wifi), channel, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), channel, NULL,
 		 "wifi channel setting\n"
 		 "This command is used to set the channel when\n"
 		 "monitor or TX-Injection mode is enabled\n"
@@ -3341,7 +3641,7 @@ SHELL_SUBCMD_ADD((wifi), channel, &wifi_commands,
 		 cmd_wifi_channel,
 		 2, 4);
 
-SHELL_SUBCMD_ADD((wifi), connect, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), connect, NULL,
 		  "Connect to a Wi-Fi AP\n"
 		  "<-s --ssid \"<SSID>\">: SSID.\n"
 		  "[-c --channel]: Channel that needs to be scanned for connection. "
@@ -3361,6 +3661,7 @@ SHELL_SUBCMD_ADD((wifi), connect, &wifi_commands,
 		  "[-K, --key1-pwd for eap phase1 or --key2-pwd for eap phase2]:\n"
 		  "Private key passwd for enterprise mode. Default no password for private key.\n"
 		  "[-S, --suiteb-type]: 1:suiteb, 2:suiteb-192. Default 0: not suiteb mode.\n"
+		  "[-T, --TLS-cipher]: 0:TLS-NONE, 1:TLS-ECC-P384, 2:TLS-RSA-3K.\n"
 		  "[-V, --eap-version]: 0 or 1. Default 1: eap version 1.\n"
 		  "[-I, --eap-id1]: Client Identity. Default no eap identity.\n"
 		  "[-P, --eap-pwd1]: Client Password.\n"
@@ -3370,12 +3671,12 @@ SHELL_SUBCMD_ADD((wifi), connect, &wifi_commands,
 		  cmd_wifi_connect,
 		 2, 19);
 
-SHELL_SUBCMD_ADD((wifi), disconnect, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), disconnect, NULL,
 		 "Disconnect from the Wi-Fi AP.\n",
 		 cmd_wifi_disconnect,
 		 1, 0);
 
-SHELL_SUBCMD_ADD((wifi), mode, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), mode, NULL,
 		 "mode operational setting\n"
 		 "This command may be used to set the Wi-Fi device into a specific "
 		 "mode of operation\n"
@@ -3393,7 +3694,7 @@ SHELL_SUBCMD_ADD((wifi), mode, &wifi_commands,
 		 cmd_wifi_mode,
 		 1, 9);
 
-SHELL_SUBCMD_ADD((wifi), packet_filter, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), packet_filter, NULL,
 		 "mode filter setting\n"
 		 "This command is used to set packet filter setting when\n"
 		 "monitor, TX-Injection and promiscuous mode is enabled\n"
@@ -3415,51 +3716,52 @@ SHELL_SUBCMD_ADD((wifi), packet_filter, &wifi_commands,
 		 cmd_wifi_packet_filter,
 		 2, 8);
 
-SHELL_SUBCMD_ADD((wifi), pmksa_flush, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), pmksa_flush, NULL,
 		 "Flush PMKSA cache entries.\n",
 		 cmd_wifi_pmksa_flush,
 		 1, 0);
 
-SHELL_SUBCMD_ADD((wifi), ps, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), ps, NULL,
 		 "Configure or display Wi-Fi power save state.\n[on/off]\n",
 		 cmd_wifi_ps,
 		 1, 1);
 
-SHELL_SUBCMD_ADD((wifi), ps_listen_interval, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), ps_listen_interval, NULL,
 		 "<val> - Listen interval in the range of <0-65535>.\n",
 		 cmd_wifi_listen_interval,
 		 2, 0);
 
-SHELL_SUBCMD_ADD((wifi), ps_mode, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), ps_mode, NULL,
 		 "<mode: legacy/WMM>.\n",
 		 cmd_wifi_ps_mode,
 		 2, 0);
 
-SHELL_SUBCMD_ADD((wifi), ps_timeout, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), ps_timeout, NULL,
 		 "<val> - PS inactivity timer(in ms).\n",
 		 cmd_wifi_ps_timeout,
 		 2, 0);
 
-SHELL_SUBCMD_ADD((wifi), ps_wakeup_mode, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), ps_wakeup_mode, NULL,
 		 "<wakeup_mode: DTIM/Listen Interval>.\n",
 		 cmd_wifi_ps_wakeup_mode,
 		 2, 0);
 
-SHELL_SUBCMD_ADD((wifi), reg_domain, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), reg_domain, NULL,
 		 "Set or Get Wi-Fi regulatory domain\n"
 		 "[ISO/IEC 3166-1 alpha2]: Regulatory domain\n"
 		 "[-f]: Force to use this regulatory hint over any other regulatory hints\n"
 		 "Note1: The behavior of this command is dependent on the Wi-Fi driver/chipset implementation\n"
-		 "Note2: This may cause regulatory compliance issues, use it at your own risk.\n",
+		 "Note2: This may cause regulatory compliance issues, use it at your own risk.\n"
+		 "[-v]: Verbose, display the per-channel regulatory information\n",
 		 cmd_wifi_reg_domain,
-		 1, 2);
+		 1, 3);
 
-SHELL_SUBCMD_ADD((wifi), rts_threshold, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), rts_threshold, NULL,
 		 "<rts_threshold: rts threshold/off>.\n",
 		 cmd_wifi_set_rts_threshold,
 		 1, 1);
 
-SHELL_SUBCMD_ADD((wifi), scan, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), scan, NULL,
 		 "Scan for Wi-Fi APs\n"
 		 "[-t, --type <active/passive>] : Preferred mode of scan. "
 		 "The actual mode of scan can depend on factors such as the Wi-Fi chip "
@@ -3486,35 +3788,35 @@ SHELL_SUBCMD_ADD((wifi), scan, &wifi_commands,
 		 cmd_wifi_scan,
 		 1, 8);
 
-SHELL_SUBCMD_ADD((wifi), statistics, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), statistics, NULL,
 		 "Wi-Fi interface statistics.\n"
 		 "[reset] : Reset Wi-Fi interface statistics\n"
 		 "[help] :  Print out the help for the statistics command.",
 		 cmd_wifi_stats,
 		 1, 1);
 
-SHELL_SUBCMD_ADD((wifi), status, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), status, NULL,
 		 "Status of the Wi-Fi interface.\n",
 		 cmd_wifi_status,
 		 1, 0);
 
-SHELL_SUBCMD_ADD((wifi), version, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), version, NULL,
 		 "Print Wi-Fi Driver and Firmware versions\n",
 		 cmd_wifi_version,
 		 1, 0);
 
-SHELL_SUBCMD_ADD((wifi), wps_pbc, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), wps_pbc, NULL,
 		 "Start a WPS PBC connection.\n",
 		 cmd_wifi_wps_pbc,
 		 1, 0);
 
-SHELL_SUBCMD_ADD((wifi), wps_pin, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), wps_pin, NULL,
 		 "Set and get WPS pin.\n"
 		 "[pin] Only applicable for set.\n",
 		 cmd_wifi_wps_pin,
 		 1, 1);
 
-SHELL_SUBCMD_ADD((wifi), ps_exit_strategy, &wifi_commands,
+SHELL_SUBCMD_ADD((wifi), ps_exit_strategy, NULL,
 		 "<tim> : Set PS exit strategy to Every TIM\n"
 		 "<custom> : Set PS exit strategy to Custom",
 		 cmd_wifi_ps_exit_strategy,

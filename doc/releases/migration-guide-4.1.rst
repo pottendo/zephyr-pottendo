@@ -27,6 +27,18 @@ Boards
 Devicetree
 **********
 
+* The :dtcompatible:`microchip,cap1203` driver has changed its compatible to
+  :dtcompatible:`microchip,cap12xx` and has been updated to support multiple
+  channels.
+  The number of available channels is derived from the length of the devicetree
+  array property ``input-codes``.
+  The :kconfig:option:`CONFIG_INPUT_CAP1203_POLL` has been removed:
+  If the devicetree property ``int-gpios`` is present, interrupt mode is used
+  otherwise, polling is used.
+  The :kconfig:option:`CONFIG_INPUT_CAP1203_PERIOD` has been replaced with
+  the devicetree property ``poll-interval-ms``.
+  In interrupt mode, the devicetree property ``repeat`` is supported.
+
 STM32
 =====
 
@@ -68,12 +80,13 @@ LVGL
 Device Drivers and Devicetree
 *****************************
 
-* Device driver APIs are placed into iterable sections (:github:`71773`) to allow for runtime
-  checking. See :ref:`device_driver_api` for more details.
+* Device driver APIs are placed into iterable sections (:github:`71773` and :github:`82102`) to
+  allow for runtime checking. See :ref:`device_driver_api` for more details.
   The :c:macro:`DEVICE_API()` macro should be used by out-of-tree driver implementations for
-  the following driver classes:
+  all the upstream driver classes.
 
-    * :c:struct:`adc_driver_api`
+* The :c:func:`video_buffer_alloc` and :c:func:`video_buffer_aligned_alloc` functions in the
+  video API now take an additional timeout parameter.
 
 ADC
 ===
@@ -181,6 +194,8 @@ Sensors
 Serial
 ======
 
+* Renamed the ``compatible`` from ``nxp,kinetis-lpuart`` to :dtcompatible:`nxp,lpuart`.
+
 Stepper
 =======
 
@@ -189,6 +204,8 @@ Stepper
   * Renamed the ``stepper_enable_constant_velocity_mode`` function to :c:func:`stepper_run`.
   * Renamed the ``stepper_move`` function to :c:func:`stepper_move_by`.
   * Renamed the ``stepper_set_target_position`` function to :c:func:`stepper_move_to`.
+  * The :kconfig:option:`STEPPER_ADI_TMC_RAMP_GEN` is now deprecated and is replaced with the new
+    :kconfig:option:`STEPPER_ADI_TMC5041_RAMP_GEN` option.
 
 SPI
 ===
@@ -198,6 +215,11 @@ SPI
 
 Regulator
 =========
+
+RTC
+===
+
+* Renamed the ``compatible`` from ``nxp,kinetis-rtc`` to :dtcompatible:`nxp,rtc`.
 
 Video
 =====
@@ -212,7 +234,15 @@ Video
 Watchdog
 ========
 
+Wi-Fi
+=====
+
 * Renamed the ``compatible`` from ``nxp,kinetis-wdog32`` to :dtcompatible:`nxp,wdog32`.
+
+* The config options :kconfig:option:`CONFIG_NXP_WIFI_BUILD_ONLY_MODE` and
+  :kconfig:option:`CONFIG_NRF_WIFI_BUILD_ONLY_MODE` are now unified under
+  :kconfig:option:`CONFIG_BUILD_ONLY_NO_BLOBS` making it a common entry point
+  for any vendor to enable builds without blobs.
 
 Bluetooth
 *********
