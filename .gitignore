@@ -104,6 +104,9 @@ Nits.txt
 Pylint.txt
 Ruff.txt
 SphinxLint.txt
+SysbuildKconfig.txt
+SysbuildKconfigBasic.txt
+SysbuildKconfigBasicNoModules.txt
 TextEncoding.txt
 YAMLLint.txt
 samples/mandelbrot/mandel-f-cons

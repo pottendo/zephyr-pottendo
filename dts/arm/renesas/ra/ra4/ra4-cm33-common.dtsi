@@ -7,6 +7,7 @@
 #include <mem.h>
 #include <arm/armv8-m.dtsi>
 #include <zephyr/dt-bindings/pinctrl/renesas/pinctrl-ra.h>
+#include <zephyr/dt-bindings/pwm/ra_pwm.h>
 #include <freq.h>
 
 / {
@@ -37,10 +38,13 @@
 			status = "okay";
 		};
 
-		flash-controller@407e0000 {
+		flash: flash-controller@407e0000 {
+			compatible = "renesas,ra-flash-hp-controller";
 			reg = <0x407e0000 0x10000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			interrupts = <49 1>, <50 1>;
+			interrupt-names = "frdyi", "fiferr";
 		};
 
 		ioport0: gpio@40080000 {
@@ -267,6 +271,20 @@
 			status = "disabled";
 		};
 
+		iic0: iic0@4009f000 {
+			compatible = "renesas,ra-iic";
+			channel = <0>;
+			reg = <0x4009f000 0x100>;
+			status = "disabled";
+		};
+
+		iic1: iic1@4009f100 {
+			compatible = "renesas,ra-iic";
+			channel = <1>;
+			reg = <0x4009f100 0x100>;
+			status = "disabled";
+		};
+
 		option_setting_ofs: option_setting_ofs@100a100 {
 			compatible = "zephyr,memory-region";
 			reg = <0x0100a100 0x18>;
@@ -429,6 +447,46 @@
 			channel = <15>;
 			renesas,sample-clock-div = <64>;
 			#port-irq-cells = <0>;
+			status = "disabled";
+		};
+
+		pwm0: pwm0@40169000 {
+			compatible = "renesas,ra-pwm";
+			divider = <RA_PWM_SOURCE_DIV_1>;
+			channel = <RA_PWM_CHANNEL_0>;
+			clocks = <&pclkd MSTPE 31>;
+			reg = <0x40169000 0x100>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm1: pwm1@40169100 {
+			compatible = "renesas,ra-pwm";
+			divider = <RA_PWM_SOURCE_DIV_1>;
+			channel = <RA_PWM_CHANNEL_1>;
+			clocks = <&pclkd MSTPE 30>;
+			reg = <0x40169100 0x100>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm4: pwm4@40169400 {
+			compatible = "renesas,ra-pwm";
+			divider = <RA_PWM_SOURCE_DIV_1>;
+			channel = <RA_PWM_CHANNEL_4>;
+			clocks = <&pclkd MSTPE 27>;
+			reg = <0x40169400 0x100>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm5: pwm5@40169500 {
+			compatible = "renesas,ra-pwm";
+			divider = <RA_PWM_SOURCE_DIV_1>;
+			channel = <RA_PWM_CHANNEL_5>;
+			clocks = <&pclkd MSTPE 26>;
+			reg = <0x40169500 0x100>;
+			#pwm-cells = <3>;
 			status = "disabled";
 		};
 	};

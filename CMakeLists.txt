@@ -175,6 +175,12 @@ endif()
 # @Intent: Set compiler flags to detect general stack overflows across all functions
 if(CONFIG_STACK_CANARIES)
   zephyr_compile_options($<TARGET_PROPERTY:compiler,security_canaries>)
+elseif(CONFIG_STACK_CANARIES_STRONG)
+  zephyr_compile_options($<TARGET_PROPERTY:compiler,security_canaries_strong>)
+elseif(CONFIG_STACK_CANARIES_ALL)
+  zephyr_compile_options($<TARGET_PROPERTY:compiler,security_canaries_all>)
+elseif(CONFIG_STACK_CANARIES_EXPLICIT)
+  zephyr_compile_options($<TARGET_PROPERTY:compiler,security_canaries_explicit>)
 endif()
 
 # @Intent: Obtain compiler optimizations flags and store in variables
@@ -1103,10 +1109,10 @@ set_ifndef(  TOPT "${COMPILER_TOPT}")
 set_ifndef(  TOPT -Wl,-T) # Use this if the compiler driver doesn't set a value
 
 if(CONFIG_HAVE_CUSTOM_LINKER_SCRIPT)
-  set(LINKER_SCRIPT ${APPLICATION_SOURCE_DIR}/${CONFIG_CUSTOM_LINKER_SCRIPT})
+  string(CONFIGURE ${APPLICATION_SOURCE_DIR}/${CONFIG_CUSTOM_LINKER_SCRIPT} LINKER_SCRIPT)
   if(NOT EXISTS ${LINKER_SCRIPT})
-    set(LINKER_SCRIPT ${CONFIG_CUSTOM_LINKER_SCRIPT})
-    assert_exists(CONFIG_CUSTOM_LINKER_SCRIPT)
+    string(CONFIGURE ${CONFIG_CUSTOM_LINKER_SCRIPT} LINKER_SCRIPT)
+    assert_exists(LINKER_SCRIPT)
   endif()
 elseif(DEFINED BOARD_LINKER_SCRIPT)
   set(LINKER_SCRIPT ${BOARD_LINKER_SCRIPT})

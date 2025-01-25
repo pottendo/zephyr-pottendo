@@ -97,7 +97,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			ngpios = <16>;
-			vbatts_pins = <2 3 4>;
+			vbatts-pins = <2 3 4>;
 			status = "disabled";
 		};
 
@@ -277,6 +277,10 @@
 			#size-cells = <1>;
 			interrupts = <49 1>, <50 1>;
 			interrupt-names = "frdyi", "fiferr";
+			reserved-area-num = <33>;
+			block-32kb-linear-end = <68>;
+			block-32kb-dual-low-end = <36>;
+			block-32kb-dual-high-end = <106>;
 		};
 
 		adc0: adc@40332000 {
@@ -334,7 +338,7 @@
 		};
 
 		pwm0: pwm0@40322000 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_0>;
 			clocks = <&pclkd MSTPE 31>;
@@ -344,7 +348,7 @@
 		};
 
 		pwm1: pwm1@40322100 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_1>;
 			clocks = <&pclkd MSTPE 30>;
@@ -354,7 +358,7 @@
 		};
 
 		pwm2: pwm2@40322200 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_2>;
 			clocks = <&pclkd MSTPE 29>;
@@ -364,7 +368,7 @@
 		};
 
 		pwm3: pwm3@40322300 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_3>;
 			clocks = <&pclkd MSTPE 28>;
@@ -374,7 +378,7 @@
 		};
 
 		pwm4: pwm4@40322400 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_4>;
 			clocks = <&pclkd MSTPE 27>;
@@ -384,7 +388,7 @@
 		};
 
 		pwm5: pwm5@40322500 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_5>;
 			clocks = <&pclkd MSTPE 26>;
@@ -394,7 +398,7 @@
 		};
 
 		pwm6: pwm6@40322600 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_6>;
 			clocks = <&pclkd MSTPE 25>;
@@ -404,7 +408,7 @@
 		};
 
 		pwm7: pwm7@40322700 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_7>;
 			clocks = <&pclkd MSTPE 24>;
@@ -414,7 +418,7 @@
 		};
 
 		pwm8: pwm8@40322800 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_8>;
 			clocks = <&pclkd MSTPE 23>;
@@ -424,7 +428,7 @@
 		};
 
 		pwm9: pwm9@40322900 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_9>;
 			clocks = <&pclkd MSTPE 22>;
@@ -434,7 +438,7 @@
 		};
 
 		pwm10: pwm10@40322a00 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_10>;
 			clocks = <&pclkd MSTPE 21>;
@@ -444,7 +448,7 @@
 		};
 
 		pwm11: pwm11@40322b00 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_11>;
 			clocks = <&pclkd MSTPE 20>;
@@ -454,7 +458,7 @@
 		};
 
 		pwm12: pwm12@40322c00 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_12>;
 			clocks = <&pclkd MSTPE 19>;
@@ -464,7 +468,7 @@
 		};
 
 		pwm13: pwm13@40322d00 {
-			compatible = "renesas,ra8-pwm";
+			compatible = "renesas,ra-pwm";
 			divider = <RA_PWM_SOURCE_DIV_1>;
 			channel = <RA_PWM_CHANNEL_13>;
 			clocks = <&pclkd MSTPE 18>;
@@ -715,6 +719,34 @@
 			channel = <15>;
 			renesas,sample-clock-div = <64>;
 			#port-irq-cells = <0>;
+			status = "disabled";
+		};
+
+		sdhc0: sdhc@40252000 {
+			compatible = "renesas,ra-sdhc";
+			channel = <0>;
+			bus-width = <4>;
+			sd-support;
+			mmc-support;
+			card-detect;
+			max-bus-freq = <DT_FREQ_M(52)>;
+			clocks = <&pclkb MSTPC 12>;
+			reg = <0x40252000 0x0400>;
+			interrupt-names = "accs", "card", "dma-req";
+			interrupts = <57 12>, <58 12>, <59 12>;
+			status = "disabled";
+		};
+
+		sdhc1: sdhc@40252400 {
+			compatible = "renesas,ra-sdhc";
+			channel = <1>;
+			bus-width = <4>;
+			sd-support;
+			mmc-support;
+			card-detect;
+			max-bus-freq = <DT_FREQ_M(52)>;
+			clocks = <&pclkb MSTPC 11>;
+			reg = <0x40252400 0x0400>;
 			status = "disabled";
 		};
 	};

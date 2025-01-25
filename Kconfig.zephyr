@@ -88,16 +88,23 @@ config HAS_FLASH_LOAD_OFFSET
 
 if HAS_FLASH_LOAD_OFFSET
 
+# Workaround for not being able to have commas in macro arguments
+DT_CHOSEN_Z_CODE_PARTITION := zephyr,code-partition
+
+config HAS_DT_CODE_PARTITION
+	def_bool "$(dt_chosen_path,$(DT_CHOSEN_Z_CODE_PARTITION))" != ""
+	help
+	  Symbol that indicates whether the "zephyr,code-partition"
+	  chosen property is set. Other settings may depend on it.
+
 config USE_DT_CODE_PARTITION
 	bool "Link application into /chosen/zephyr,code-partition from devicetree"
+	depends on HAS_DT_CODE_PARTITION
 	help
 	  When enabled, the application will be linked into the flash partition
 	  selected by the zephyr,code-partition property in /chosen in devicetree.
 	  When this is disabled, the flash load offset and size can be set manually
 	  below.
-
-# Workaround for not being able to have commas in macro arguments
-DT_CHOSEN_Z_CODE_PARTITION := zephyr,code-partition
 
 config FLASH_LOAD_OFFSET
 	# Only user-configurable when USE_DT_CODE_PARTITION is disabled
@@ -793,7 +800,8 @@ config BUILD_OUTPUT_UF2_FAMILY_ID
 	default "0xada52840" if SOC_NRF52840_QIAA
 	default "0x4fb2d5bd" if SOC_SERIES_IMXRT10XX || SOC_SERIES_IMXRT11XX
 	default "0x2abc77ec" if SOC_SERIES_LPC55XXX
-	default "0xe48bff56" if SOC_SERIES_RP2XXX
+	default "0xe48bff56" if SOC_SERIES_RP2040
+	default "0xe48bff57" if SOC_SERIES_RP2350
 	default "0x68ed2b88" if SOC_SERIES_SAMD21
 	default "0x55114460" if SOC_SERIES_SAMD51
 	default "0x647824b6" if SOC_SERIES_STM32F0X
