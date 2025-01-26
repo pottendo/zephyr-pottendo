@@ -147,6 +147,15 @@
                 interrupt-names = "soft0", "timer0", "soft1", "timer1";
                 status="okay";
             };
+
+		    mtimer: timer@f001bff8 {
+			    compatible = "riscv,machine-timer";
+			    interrupts-extended = <&L0 7 &L1 7>;
+			    reg = <0xf001bff8 0x8 0xf0014000 0x8>;
+			    reg-names = "mtime", "mtimecmp";
+                status="okay";
+		    };
+
             liteuart0: serial@f0001000 {
                 compatible = "litex,uart";
                 interrupt-parent = <&intc0>;
